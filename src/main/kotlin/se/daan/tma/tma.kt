@@ -206,7 +206,6 @@ private fun parse(table: RawTable): Zone? {
             val matchEntire = lateralRegex.matchEntire(trimmed)
             if (matchEntire == null) {
                 return null
-                //throw IllegalArgumentException()
             } else if (matchEntire.groups[1] != null) {
                 Point(
                     parseLat(matchEntire.groups[1]!!.value),
@@ -247,7 +246,10 @@ private fun parse(table: RawTable): Zone? {
 
     val type = ZoneType.entries
         .firstOrNull { name.contains(" " + it.name) }
-        ?: ZoneType.OTHER
+
+    if(type == null) {
+        return null
+    }
 
     val airspace = if(type == ZoneType.TMA) {
         name.split(" TMA")[0] + " TMA"
@@ -314,12 +316,12 @@ data class RawTable(
 )
 
 enum class ZoneType {
-    FIR,
+//    FIR,
     CTR,
     ATZ,
     CTA,
     TMA,
-    OTHER
+//    OTHER
 }
 
 data class Zone(
