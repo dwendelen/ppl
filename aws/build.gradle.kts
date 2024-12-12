@@ -10,4 +10,4 @@ fun registerTerraform(environment: String) {
 
 registerTerraform("dev")
 //registerTerraform("tst", "jsBrowserDevelopmentWebpack")
-//registerTerraform("prd", "jsBrowserProductionWebpack")
+registerTerraform("prd")
