@@ -1,10 +1,11 @@
-package se.daan.tma
+package se.daan.airspaces
 
 import org.w3c.dom.NodeList
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.nio.file.Files
 import java.nio.file.StandardOpenOption
 import javax.xml.XMLConstants
 import javax.xml.parsers.DocumentBuilder
@@ -58,7 +59,7 @@ val aerodromes = listOf(
     "EBWE"
 )
 
-fun main() {
+fun main(args: Array<String>) {
     download("ENR.html", "https://ops.skeyes.be/html/belgocontrol_static/eaip/eAIP_Main/html/eAIP/EB-ENR-2.1-en-GB.html")
     aerodromes.forEach {
         download("$it.html", "https://ops.skeyes.be/html/belgocontrol_static/eaip/eAIP_Main/html/eAIP/EB-AD-2.$it-en-GB.html")
@@ -71,7 +72,10 @@ fun main() {
     val zones = (aerodromeRawTables + enrRawTables)
         .mapNotNull { parse(it) }
 
-    Path("/tmp/zones.js").writer(Charsets.UTF_8, StandardOpenOption.TRUNCATE_EXISTING).use { wr ->
+    val outputDir = Path(args[0])
+    Files.createDirectories(outputDir)
+
+    outputDir.resolve("zones.js").writer(Charsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING).use { wr ->
         wr.write("var zones = [")
         var firstZone = true
         zones.forEach { z ->
