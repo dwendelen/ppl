@@ -1,9 +1,173 @@
 let canvas = document.getElementById("canvas")
 let ctx = canvas.getContext("2d");
 
-drawBoard(ctx, 100, -30, 100, 20)
+let problem = {
+    heading: 0,
+    tas: 100,
+    drift: 0,
+    windDirection: 0,
+    windVelocity: 0,
+    course: 0,
+    gs: 100
+}
+let shown = problem
+
+drawBoard(ctx, 100, 0, 0, 0)
+populateTable()
+
+
+function populateTable() {
+    function disp(val) {
+        if(val == null) {
+            return ""
+        } else {
+            return (Math.round(val * 10) / 10).toString()
+        }
+    }
+    document.getElementById("heading").textContent = disp(shown.heading)
+    document.getElementById("tas").textContent = disp(shown.tas)
+    document.getElementById("drift").textContent = disp(shown.drift)
+    document.getElementById("wind").textContent = disp(shown.windDirection) + " / " + disp(shown.windVelocity)
+    document.getElementById("course").textContent = disp(shown.course)
+    document.getElementById("gs").textContent = disp(shown.gs)
+}
+
+function generate() {
+    function rand(min, max, step) {
+        return Math.ceil(Math.random() * (max - min) / step ) * step + min
+    }
+    problem = {}
+    shown = {}
+    if(Math.random() < 0.2) {
+        // Find wind
+        problem.heading = rand(0, 360, 5)
+        problem.tas = rand(80, 140, 5)
+        problem.course = rand(problem.heading - 20, problem.heading + 20, 5)
+        problem.gs = rand(80, 140, 5)
+
+        shown.heading = problem.heading
+        shown.tas = problem.tas
+        shown.course = problem.course
+        shown.gs = problem.gs
+
+        shown.windDirection = null
+        shown.windVelocity = null
+
+        let windX = problem.gs * Math.cos(problem.course * Math.PI / 180) - problem.tas * Math.cos(problem.heading * Math.PI / 180)
+        let windY = problem.gs * Math.sin(problem.course * Math.PI / 180) - problem.tas * Math.sin(problem.heading * Math.PI / 180)
+        let windDirection = Math.atan2(windY, windX) * 180 / Math.PI
+        if(windDirection < 0) {
+            windDirection += 360
+        }
+        if(windDirection <= 180) {
+            windDirection += 180
+        } else {
+            windDirection -= 180
+        }
+        problem.windVelocity = Math.sqrt(windX * windX + windY * windY)
+        problem.windDirection = windDirection
+    } else {
+        problem.windDirection = rand(0, 360, 10)
+        problem.windVelocity = Math.ceil(Math.random() * 35) + 5
+        shown.windDirection = problem.windDirection
+        shown.windVelocity = problem.windVelocity
+
+        let windDir = problem.windDirection - 180
+
+        if(Math.random() < 0.5) {
+            // Course given
+            problem.course = rand(0, 360, 10)
+            shown.course = problem.course
+            shown.heading = null
+            if(Math.random() < 0.5) {
+                // TAS given
+                problem.tas = rand(80, 140, 5)
+                shown.tas = problem.tas
+                shown.gs = null
+
+                let crossWind = Math.sin((problem.course - windDir) * Math.PI / 180) * problem.windVelocity
+                let backWind = Math.cos((problem.course - windDir) * Math.PI / 180) * problem.windVelocity
+                let drift = Math.asin(crossWind / problem.tas)
+                problem.drift = drift * 180 / Math.PI
+                problem.heading = problem.course - problem.drift
+                problem.gs = problem.tas * Math.cos(drift) + backWind
+            } else {
+                // GS given
+                problem.gs = rand(80, 140, 5)
+                shown.gs = problem.gs
+                shown.tas = null
+
+                let groundX = Math.cos(problem.course * Math.PI / 180) * problem.gs;
+                let groundY = Math.sin(problem.course * Math.PI / 180) * problem.gs;
+                let windX = problem.windVelocity * Math.cos(windDir * Math.PI / 180);
+                let windY = problem.windVelocity * Math.sin(windDir * Math.PI / 180);
+                let airX = groundX - windX
+                let airY = groundY - windY
+                let heading = Math.atan2(airY, airX) * 180 / Math.PI;
+                if(heading < 0) {
+                    heading += 360
+                }
+                problem.heading = heading
+                problem.tas = Math.sqrt(airX * airX + airY * airY)
+                problem.drift = problem.course - problem.heading
+            }
+        } else {
+            // Heading given
+            problem.heading = rand(0, 360, 10)
+            shown.heading = problem.heading
+            shown.course = null
+            if(Math.random() < 0.5) {
+                // TAS given
+                problem.tas = rand(80, 140, 5)
+                shown.tas = problem.tas
+                shown.gs = null
+
+                let airX = Math.cos(problem.heading * Math.PI / 180) * problem.tas;
+                let airY = Math.sin(problem.heading * Math.PI / 180) * problem.tas;
+                let windX = problem.windVelocity * Math.cos(windDir * Math.PI / 180);
+                let windY = problem.windVelocity * Math.sin(windDir * Math.PI / 180);
+                let groundX = airX + windX
+                let groundY = airY + windY
+                let course = Math.atan2(groundY, groundX) * 180 / Math.PI;
+                if(course < 0) {
+                    course += 360
+                }
+                problem.course = course
+                problem.gs = Math.sqrt(groundX * groundX + groundY * groundY)
+                problem.drift = problem.course - problem.heading
+            } else {
+                // GS given
+                problem.gs = rand(80, 140, 5)
+                shown.gs = problem.gs
+                shown.tas = null
+
+                let crossWind = Math.sin((windDir - problem.heading) * Math.PI / 180) * problem.windVelocity
+                let backWind = Math.cos((windDir - problem.heading) * Math.PI / 180) * problem.windVelocity
+                let drift = Math.asin(crossWind / problem.gs)
+                problem.drift = drift * 180 / Math.PI
+                problem.course = problem.heading + problem.drift
+                problem.tas = problem.gs * Math.cos(drift) - backWind
+            }
+        }
+        shown.drift = null
+    }
+    populateTable()
+}
+
+function solution() {
+    if(shown.course !== null) {
+        drawBoard(ctx, problem.gs, problem.course, problem.windDirection, problem.windVelocity)
+    } else {
+        drawBoard(ctx, problem.tas, problem.heading, 180 + problem.windDirection, problem.windVelocity)
+    }
+    shown = problem
+    populateTable()
+}
 
 function drawBoard(ctx, speed, direction, windArmDirection, windSpeed) {
+    ctx.reset()
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+
     const scale = 4
     const centerX = 100
     const centerY = 100

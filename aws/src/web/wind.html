@@ -1,5 +1,18 @@
 <html>
+<head>
+</head>
 <body>
+<table>
+    <thead>
+        <tr><th></th><th>Direction</th><th>Speed</th></tr>
+    </thead>
+    <tbody>
+        <tr><td>Air</td><td id="heading"></td><td id="tas"></td></tr>
+        <tr><td>Drift / Wind</td><td id="drift"></td><td id="wind"></td></tr>
+        <tr><td>Ground</td><td id="course"></td><td id="gs"></td></tr>
+    </tbody>
+</table>
+<button onclick="generate()">Generate</button><button onclick="solution()">Solution</button><br>
 <canvas id="canvas" width="800" height="800"></canvas>
 <script src="wind.js"></script>
 </body>
