@@ -1,20 +1,7 @@
 let canvas = document.getElementById("canvas")
 let ctx = canvas.getContext("2d");
 
-let problem = {
-    heading: 0,
-    tas: 100,
-    drift: 0,
-    windDirection: 0,
-    windVelocity: 0,
-    course: 0,
-    gs: 100
-}
-let shown = problem
-
-drawBoard(ctx, 100, 0, 0, 0)
-populateTable()
-
+generate()
 
 function populateTable() {
     function disp(val) {
@@ -24,6 +11,7 @@ function populateTable() {
             return (Math.round(val * 10) / 10).toString()
         }
     }
+
     document.getElementById("heading").textContent = disp(shown.heading)
     document.getElementById("tas").textContent = disp(shown.tas)
     document.getElementById("drift").textContent = disp(shown.drift)
@@ -33,6 +21,8 @@ function populateTable() {
 }
 
 function generate() {
+    drawBoard(ctx, 100, 0, 0, 0)
+
     function rand(min, max, step) {
         return Math.ceil(Math.random() * (max - min) / step ) * step + min
     }
