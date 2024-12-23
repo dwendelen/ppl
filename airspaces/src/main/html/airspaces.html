@@ -1,8 +1,21 @@
 <html>
 <body>
 <script src="zones.js"></script>
-<canvas id="height-top" width="800" height="200"></canvas><br>
-<canvas id="top-down" width="800" height="800"></canvas><canvas id="height-side" width="200" height="800"></canvas>
+<table>
+    <tr>
+        <td><canvas id="height-top" width="800" height="200"></canvas></td>
+        <td><table>
+            <tr><td>Height</td><td><input id="height" type="text"/></td><td>ft</td></tr>
+            <tr><td>Lat</td><td><input id="lat" type="text"/> </td><td>N</td></tr>
+            <tr><td>Lon</td><td><input id="lon" type="text"/> </td><td>E</td></tr>
+            <tr><td></td><td><button id="apply">Apply</button></td></tr>
+        </table></td>
+    </tr>
+    <tr>
+        <td><canvas id="top-down" width="800" height="800"></canvas></td>
+        <td><canvas id="height-side" width="200" height="800"></canvas></td>
+    </tr>
+</table>
 <script src="airspaces.js"></script>
 </body>
 </html>

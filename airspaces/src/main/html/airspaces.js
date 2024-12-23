@@ -1,3 +1,5 @@
+const cos51 = Math.cos(51 * Math.PI / 180);
+
 const xLeft = convertLon([2, 15, 0]);
 const xRight = convertLon([6, 30, 0]);
 const yTop = convertLat([51, 40, 0]);
@@ -6,6 +8,7 @@ const hTop = 10000
 let lat = convertLat([51, 11, 22]);
 let lon = convertLon([4, 27, 37]);
 let height = 1200
+
 
 const colorCtr = {
     "Beauvechain CTR": "salmon",
@@ -34,6 +37,11 @@ let topDownCanvas = document.getElementById("top-down");
 let heightTopCanvas = document.getElementById("height-top");
 let heightSideCanvas = document.getElementById("height-side");
 
+let heightInput = document.getElementById("height")
+let latInput = document.getElementById("lat")
+let lonInput = document.getElementById("lon")
+let applyButton = document.getElementById("apply")
+
 const scale = topDownCanvas.width / (xRight - xLeft)
 const hScale = heightTopCanvas.height / hTop
 
@@ -41,6 +49,10 @@ function renderViews() {
     renderTopDownView(topDownCanvas, height);
     renderHeightTopView(heightTopCanvas, lat);
     renderHeightSideView(heightSideCanvas, lon);
+
+    heightInput.value = Math.round(height).toString()
+    latInput.value = dispLat(lat)
+    lonInput.value = dispLon(lon)
 }
 
 renderViews()
@@ -71,6 +83,14 @@ heightSideCanvas.onclick = ev => {
 
     height = relX / hScale
     lat = yTop - relY / scale
+
+    renderViews()
+}
+
+applyButton.onclick = ev => {
+    height = parseInt(heightInput.value.replaceAll(" ", ""))
+    lat = parseLat(latInput.value)
+    lon = parseLon(lonInput.value)
 
     renderViews()
 }
@@ -456,24 +476,86 @@ function toSegments(paths) {
         } else if (path.type === "border") {
             // Nothing
         } else {
-            throw "Should not happen"
+            throw "Should not happen";
         }
     }
 
-    return segments
+    return segments;
 }
 
 function convertLatLon(latLon) {
     return [
         convertLon(latLon[1]),
         convertLat(latLon[0])
-    ]
+    ];
 }
 
 function convertLon(point) {
-    return convertLat(point) * Math.cos(51 * Math.PI / 180)
+    return convertLat(point) * cos51;
 }
 
 function convertLat(point) {
-    return 60 * point[0] + point[1] + point[2]/60
+    return 60 * point[0] + point[1] + point[2]/60;
+}
+
+function revertLon(lon) {
+    return revertLat(lon / cos51);
+}
+
+function revertLat(lat) {
+    return [Math.floor(lat / 60), Math.floor(lat % 60), Math.round((lat * 60) % 60)];
+}
+
+function dispLat(lat) {
+    let ll = revertLat(lat)
+    return pad2(ll[0]) + " " + pad2(ll[1]) + " " + pad2(ll[2]);
+}
+
+function dispLon(lon) {
+    let ll = revertLon(lon);
+    return pad3(ll[0]) + " " + pad2(ll[1]) + " " + pad2(ll[2]);
+}
+
+function pad2(str) {
+    let str2 = str.toString()
+    if(str2.length === 0) {
+        return "00";
+    } else if(str2.length === 1) {
+        return "0" + str2;
+    } else if(str2.length === 2) {
+        return str2;
+    } else {
+        throw "Should not happen"
+    }
+}
+
+function pad3(str) {
+    let str2 = str.toString()
+    if(str2.length === 0) {
+        return "000";
+    } else if(str2.length === 1) {
+        return "00" + str2;
+    } else if(str2.length === 2) {
+        return "0" + str2;
+    } else if(str2.length === 3) {
+        return str2;
+    } else {
+        throw "Should not happen"
+    }
+}
+
+function parseLat(text) {
+    let cleaned = text.replaceAll(" ", "");
+    let p1 = cleaned.slice(0, 2);
+    let p2 = cleaned.slice(2, 4);
+    let p3 = cleaned.slice(4, 6);
+    return convertLat([parseInt(p1), parseInt(p2), parseInt(p3)])
+}
+
+function parseLon(text) {
+    let cleaned = text.replaceAll(" ", "");
+    let p1 = cleaned.slice(0, 3);
+    let p2 = cleaned.slice(3, 5);
+    let p3 = cleaned.slice(5, 7);
+    return convertLon([parseInt(p1), parseInt(p2), parseInt(p3)])
 }
