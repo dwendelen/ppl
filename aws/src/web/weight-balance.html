@@ -1,6 +1,6 @@
 <html>
 <head>
-
+<link rel="stylesheet" href="weight-balance.css">
 </head>
 <body>
 <h1>Comparing graphs</h1>
@@ -23,7 +23,7 @@
     <li>Min CG: 0.205 m</li>
     <li>Max CG: 0.564 m</li>
     <li>Max Weight: 980 kg</li>
-    <li>Max moment around 0.97 m: 550 m.kg</li>
+    <li>Min moment around 0.97 m: -550 m.kg</li>
 </ul>
 
 <canvas id="momentGraph1" width="640" height="400"></canvas>
@@ -35,26 +35,53 @@
         <tr><th></th><th>Weight (kg)</th><th>Arm (m)</th><th>Moment (m.kg)</th></tr>
     </thead>
     <tbody>
-        <tr><td>Empty</td><td>667.72</td><td>0.274</td><td>182.74</td></tr>
-        <tr><td>Front</td><td>65</td><td>0.41</td><td>26.65</td></tr>
-        <tr><td>Rear</td><td>5</td><td>1.19</td><td>5.95</td></tr>
-        <tr><td>Baggage</td><td>5</td><td>1.9</td><td>9.5</td></tr>
-        <tr><td></td><td>---</td><td>---</td><td>---</td></tr>
-        <tr><td>0 Fuel</td><td>742.72</td><td>0.30</td><td>224.84</td></tr>
-        <tr><td>Around 0.97 m</td><td>742.72</td><td>0.67</td><td>497.62</td></tr>
-        <tr><td>&nbsp;</td><td></td><td></td><td></td></tr>
-        <tr><td>Fuel</td><td>90</td><td>1.12</td><td>100.80</td></tr>
-        <tr><td></td><td>---</td><td>---</td><td>---</td></tr>
-        <tr><td>Full Fuel</td><td>832.72</td><td>0.39</td><td>325.64</td></tr>
-        <tr><td>Around 0.97 m</td><td>832.72</td><td>0.58</td><td>482.98</td></tr>
+        <tr><td>Empty</td><td>668&nbsp;&nbsp;&nbsp;</td><td>0.274</td><td>183&nbsp;&nbsp;&nbsp;</td></tr>
+        <tr><td>Front</td><td>65.0&nbsp;</td><td>0.410</td><td>26.7&nbsp;</td></tr>
+        <tr><td>Rear</td><td>5.00</td><td>1.190</td><td>5.95</td></tr>
+        <tr><td>Baggage</td><td>5.00</td><td>1.900</td><td>9.50</td></tr>
+        <tr class="grey"><td>Zero Fuel</td><td>743&nbsp;&nbsp;&nbsp;</td><td>0.303</td><td>225&nbsp;&nbsp;&nbsp;</td></tr>
+        <tr class="grey"><td>Around 0.97 m</td><td>743&nbsp;&nbsp;&nbsp;</td><td>-0.667</td><td>-496&nbsp;&nbsp;&nbsp;</td></tr>
+        <tr class="no-border"><td>&nbsp;</td><td></td><td></td><td></td></tr>
+        <tr><td>Fuel</td><td>88.3&nbsp;</td><td>1.120</td><td>98.9&nbsp;</td></tr>
+        <tr class="grey"><td>Full Fuel</td><td>831&nbsp;&nbsp;&nbsp;</td><td>0.390</td><td>324&nbsp;&nbsp;&nbsp;</td></tr>
+        <tr class="grey"><td>Around 0.97 m</td><td>831&nbsp;&nbsp;&nbsp;</td><td>-0.580</td><td>-482&nbsp;&nbsp;&nbsp;</td></tr>
     </tbody>
 </table>
 <p>
     First we calculate our normal WB<br>
-    Then we calculate the arm around 0.97 m: 0.97 m - 0.30 m = 0.67 m <br>
-    Then we calculate the arm around 0.97 m: 0.97 m - 0.39 m = 0.58 m <br>
-    Resulting in a moment of 497.62 and 482.98, which are OK
+    Then we calculate the arm around 0.97: 0.303 - 0.970 = -0.667<br>
+    Then we calculate the arm around 0.97: 0.390 - 0.970 = -0.580<br>
+    Resulting in a moment of -496 and -482, which are OK
 </p>
+<p>
+    Another method:<br>
+    225 - 0.97 * 743 = -496<br>
+    324 - 0.97 * 831 = -482
+</p>
+
+<h1>Weight and balance around 0.97 m</h1>
+<p>New limits are:</p>
+<ul>
+    <li>Min CG: -0.765 m</li>
+    <li>Max CG: -0.406 m</li>
+    <li>Max Weight: 980 kg</li>
+    <li>Min moment: -550 m.kg</li>
+</ul>
+<table>
+    <thead>
+    <tr><th></th><th>Weight (kg)</th><th>Arm (m)</th><th>Moment (m.kg)</th></tr>
+    </thead>
+    <tbody>
+    <tr><td>Empty</td><td>668&nbsp;&nbsp;&nbsp;</td><td>-0.696</td><td>-465&nbsp;&nbsp;&nbsp;</td></tr>
+    <tr><td>Front</td><td>65.0&nbsp;</td><td>-0.560</td><td>-36.4&nbsp;</td></tr>
+    <tr><td>Rear</td><td>5.00</td><td>0.220</td><td>1.10</td></tr>
+    <tr><td>Baggage</td><td>5.00</td><td>0.930</td><td>4.65</td></tr>
+    <tr class="grey"><td>Zero Fuel</td><td>743&nbsp;&nbsp;&nbsp;</td><td>-0.668</td><td>-496&nbsp;&nbsp;&nbsp;</td></tr>
+    <tr class="no-border"><td>&nbsp;</td><td></td><td></td><td></td></tr>
+    <tr><td>Fuel</td><td>88.3&nbsp;</td><td>0.150</td><td>13.2&nbsp;</td></tr>
+    <tr class="grey"><td>Full Fuel</td><td>831&nbsp;&nbsp;&nbsp;</td><td>-0.581</td><td>-483&nbsp;&nbsp;&nbsp;</td></tr>
+    </tbody>
+</table>
 <script src="weight-balance.js">
 </script>
 </body>

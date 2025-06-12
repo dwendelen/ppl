@@ -1,0 +1,19 @@
+table {
+    border-collapse: collapse;
+}
+
+table td {
+    border-style: solid;
+    border-width: 1px;
+    font-family: monospace;
+    text-align: right;
+    padding: 2px 5px 2px 5px;
+}
+
+table tr.grey td {
+    background-color: lightgrey;
+}
+
+table tr.no-border td {
+    border-style: none;
+}

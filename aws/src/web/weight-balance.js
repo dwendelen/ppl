@@ -59,11 +59,11 @@ function main() {
                 return [a, w]
             })
         momentGraph1.drawPoints(points1)
-        momentGraph1.drawText(m + " m.kg", a0 + 0.003, w0 + 10)
+        momentGraph1.drawText("-" + m + " m.kg", a0 + 0.003, w0 + 10)
 
         let points2 = points1.map(p => [p[0] * p[1], p[1]])
         momentGraph2.drawPoints(points2)
-        momentGraph2.drawText(m + " m.kg", (a0 + 0.003)*(w0 + 10), w0 + 10)
+        momentGraph2.drawText("-" + m + " m.kg", (a0 + 0.003)*(w0 + 10), w0 + 10)
     }
 
     let comparingGraph1 = new Graph(document.getElementById("comparingGraph1"), 0.1, 0.6, 650, 1050)
