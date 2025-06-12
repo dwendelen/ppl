@@ -69,27 +69,33 @@ function main() {
     let comparingGraph1 = new Graph(document.getElementById("comparingGraph1"), 0.1, 0.6, 650, 1050)
     comparingGraph1.drawLines(envelope)
 
-    let comparingPoints1 = [720, 740, 760, 780, 800, 820, 840, 860, 880, 900, 920, 940, 960, 980]
+    let weightRange = [720, 740, 760, 780, 800, 820, 840, 860, 880, 900, 920, 940, 960, 980];
+    let topRange = [0.41, 0.45, 0.50, 0.564];
+    let slope1 =  weightRange
         .map(w => {
             let m0 = 720 * 0.205
             let m1 = 980 * 0.410
             let dm = (m1 - m0)/(980 - 720)
-            let m = m0 + dm * (w - 720)
-            let a = m / w
-            return [a, w]
+            let m = m0 + dm * (w - 720);
+            return [m / w, w]
         })
+    let horizontal = topRange.map(a => [a, 980])
+    let vertical = weightRange.map(w => [0.564, w])
+    let comparingPoints1 = [slope1, horizontal, vertical].flatMap(a => a)
     comparingGraph1.drawPoints(comparingPoints1)
 
     let comparingGraph2 = new Graph(document.getElementById("comparingGraph2"), 100, 650, 650, 1050)
     comparingGraph2.drawLines(envelope.map(p => [p[0] * p[1], p[1]]))
 
-    let comparingPoints2 = [720, 740, 760, 780, 800, 820, 840, 860, 880, 900, 920, 940, 960, 980]
+    let slope2 = weightRange
         .map(w => {
             let da = (0.410 - 0.205)/(980 - 720)
             let a = 0.205 + da * (w - 720)
-            let m = a * w
-            return [m, w]
+            return [a, w]
         })
+    let comparingPoints2 = [slope2, horizontal, vertical]
+        .flatMap(a => a)
+        .map(p => [p[0] * p[1], p[1]])
     comparingGraph2.drawPoints(comparingPoints2)
 }
 
