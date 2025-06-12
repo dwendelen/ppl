@@ -1,0 +1,51 @@
+<html>
+<head>
+
+</head>
+<body>
+<h1>Fuel curves</h1>
+<p>OO-VPE, 1 segment = 20L</p>
+<canvas id="canvas1" width="640" height="400"></canvas>
+<h1>Virtual Arm</h1>
+<p>OO-VPE, moment around 0.97m</p>
+<p>This can be used as a maximum value that can be calculated to replace the graphical method.</p>
+<p>New limits are:</p>
+<ul>
+    <li>Min CG: 0.205 m</li>
+    <li>Max CG: 0.564 m</li>
+    <li>Max Weight: 980 kg</li>
+    <li>Max moment around 0.97 m: 550 m.kg</li>
+</ul>
+
+<canvas id="canvas2" width="640" height="400"></canvas>
+
+<h3>Example</h3>
+<table>
+    <thead>
+        <tr><th></th><th>Weight (kg)</th><th>Arm (m)</th><th>Moment (m.kg)</th></tr>
+    </thead>
+    <tbody>
+        <tr><td>Empty</td><td>667.72</td><td>0.274</td><td>182.74</td></tr>
+        <tr><td>Front</td><td>65</td><td>0.41</td><td>26.65</td></tr>
+        <tr><td>Rear</td><td>5</td><td>1.19</td><td>5.95</td></tr>
+        <tr><td>Baggage</td><td>5</td><td>1.9</td><td>9.5</td></tr>
+        <tr><td></td><td>---</td><td>---</td><td>---</td></tr>
+        <tr><td>0 Fuel</td><td>742.72</td><td>0.30</td><td>224.84</td></tr>
+        <tr><td>Around 0.97 m</td><td>742.72</td><td>0.67</td><td>497.62</td></tr>
+        <tr><td>&nbsp;</td><td></td><td></td><td></td></tr>
+        <tr><td>Fuel</td><td>90</td><td>1.12</td><td>100.80</td></tr>
+        <tr><td></td><td>---</td><td>---</td><td>---</td></tr>
+        <tr><td>Full Fuel</td><td>832.72</td><td>0.39</td><td>325.64</td></tr>
+        <tr><td>Around 0.97 m</td><td>832.72</td><td>0.58</td><td>482.98</td></tr>
+    </tbody>
+</table>
+<p>
+    First we calculate our normal WB<br>
+    Then we calculate the arm around 0.97 m: 0.97 m - 0.30 m = 0.67 m <br>
+    Then we calculate the arm around 0.97 m: 0.97 m - 0.39 m = 0.58 m <br>
+    Resulting in a moment of 497.62 and 482.98, which are OK
+</p>
+<script src="weight-balance.js">
+</script>
+</body>
+</html>
