@@ -37,6 +37,38 @@ function main() {
         fuelGraph2.drawPoints(points2)
     }
 
+
+    let pilotGraph1 = new Graph(document.getElementById("pilotGraph1"), 0.1, 0.6, 650, 1050)
+    pilotGraph1.drawLines(envelope)
+    let pilotGraph2 = new Graph(document.getElementById("pilotGraph2"), 100, 650, 650, 1050)
+    pilotGraph2.drawLines(envelope.map(p => [p[0] * p[1], p[1]]))
+
+
+    drawPilot(726, 0.210, 2)
+    drawPilot(790, 0.260, 8)
+    drawPilot(853, 0.310, 11)
+    drawPilot(916, 0.360, 15)
+    drawPilot(980, 0.410, 18)
+    drawPilot(980, 0.460, 18)
+    drawPilot(980, 0.510, 18)
+    drawPilot(980, 0.560, 3)
+
+    function drawPilot(w0, a0, n) {
+        let m0 = a0 * w0;
+        let points1 = [...Array(n).keys()]
+            .map(i => {
+                let w_p = i * 20;
+                let w = w0 - w_p
+                let m = m0 - w_p * 0.41
+                let a = m / w;
+                return [a, w]
+            })
+        pilotGraph1.drawPoints(points1)
+
+        let points2 = points1.map(p => [p[0] * p[1], p[1]])
+        pilotGraph2.drawPoints(points2)
+    }
+
     let momentGraph1 = new Graph(document.getElementById("momentGraph1"), 0.1, 0.6, 650, 1050)
     momentGraph1.drawLines(envelope)
     let momentGraph2 = new Graph(document.getElementById("momentGraph2"), 100, 650, 650, 1050)
