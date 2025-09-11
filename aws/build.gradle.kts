@@ -4,7 +4,7 @@ fun registerTerraform(environment: String) {
         workingDir(projectDir.resolve("src/tf/$environment"))
         commandLine("terraform", "apply", "-refresh=false")
         standardInput = System.`in`
-        dependsOn(project(":airspaces").tasks.named("assembleWeb"))
+//        dependsOn(project(":airspaces").tasks.named("assembleWeb"))
     }
 }
 
