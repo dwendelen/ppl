@@ -40,25 +40,15 @@ function error(msg) {
     }
 }
 
-let positionUpdated = () => {}
+let isTest = location.search === "?test"
 
-if(navigator.geolocation) {
-    clear(main);
-    main.appendChild(document.createTextNode("Waiting for Geolocation..."));
-    watchId = navigator.geolocation.watchPosition((position) => {
-        positionUpdated(position);
-    }, null, {
-        enableHighAccuracy: true
-    })
-    positionUpdated = (newPos) => {
-        if(newPos.coords.altitude === null) {
-            error("No Altitude in Geolocation")
-        } else {
-            startGame(newPos);
-        }
-    }
+let positionUpdated = (time, x, y, alt) => {
+    startGame(time, x, y, alt);
+}
+if(isTest) {
+    loadFakeGeo()
 } else {
-    error("No Geolocation")
+    loadGeoLocation()
 }
 
 class GameObj {
@@ -254,7 +244,7 @@ function rotate(xy, angle) {
     ]
 }
 
-function startGame(lastRawPos) {
+function startGame(time, x, y, alt) {
     const canvasSize = 560
 
     let objects = []
@@ -278,7 +268,7 @@ function startGame(lastRawPos) {
     objects.push(...waypoints)
     objects.push(ehmz, ehwo, ebbr)
 
-    let mapScales = [40, 20, 10, 5, 2.5, 1]
+    let mapScales = [40, 20, 10, 5, 2, 1]
     let mapScale = 2
 
     clear(main)
@@ -338,17 +328,12 @@ function startGame(lastRawPos) {
         draw()
     }
 
-    function onGeolocation(pos) {
-        me.updatePos(
-            pos.timestamp / 1000,
-            lonToX1(pos.coords.longitude),
-            latToY1(pos.coords.latitude),
-            pos.coords.altitude * altScale
-        )
+    function onGeolocation(time, x, y, alt) {
+        me.updatePos(time, x, y, alt)
     }
 
     positionUpdated = onGeolocation
-    onGeolocation(lastRawPos)
+    onGeolocation(time, x, y, alt)
 
     setInterval(() => {
         let time = new Date().getTime();
@@ -541,4 +526,116 @@ function startGame(lastRawPos) {
         ctrl.fillText(Math.round(Math.sqrt(me.vx * me.vx + me.vy * me.vy) * 3600).toString(), controlHeight * 2.75, controlHeight * 0.75)
         ctrl.fillText(Math.round(me.alt).toString(), controlHeight * 2.75, controlHeight * 0.9)
     }
+}
+
+function loadGeoLocation() {
+    if (navigator.geolocation) {
+        error("Waiting for Geolocation...");
+        watchId = navigator.geolocation.watchPosition((pos) => {
+            positionUpdated(
+                pos.timestamp / 1000,
+                lonToX1(pos.coords.longitude),
+                latToY1(pos.coords.latitude),
+                pos.coords.altitude * altScale
+            );
+        }, null, {
+            enableHighAccuracy: true
+        })
+    } else {
+        error("No Geolocation")
+    }
+}
+
+function loadFakeGeo() {
+    let x = 0
+    let y = 0
+    let alt = arp.alt
+    let heading = 0
+    let velocity = 0
+    let horizontalVelocity = 0
+    let time = 0
+
+    setInterval(() => {
+        time = new Date().getTime() / 1000
+        x += Math.sin(heading * Math.PI / 180) * velocity / 3600
+        y += Math.cos(heading * Math.PI / 180) * velocity / 3600
+        alt += horizontalVelocity / 60
+        positionUpdated(time, x, y, alt)
+    }, 1000)
+
+    let body = document.getElementsByTagName("body")[0]
+
+    function addControl(initVal, onUpdate, step) {
+        let val = initVal
+        let textH = document.createTextNode(val)
+        let buttonHmmm = document.createElement("button");
+        buttonHmmm.textContent = "---"
+        buttonHmmm.onclick = () => {
+            val = onUpdate(val - 100 * step)
+            textH.textContent = val
+        }
+        let buttonHmm = document.createElement("button");
+        buttonHmm.textContent = "--"
+        buttonHmm.onclick = () => {
+            val = onUpdate(val - 10 * step)
+            textH.textContent = val
+        }
+        let buttonHm = document.createElement("button");
+        buttonHm.textContent = "-"
+        buttonHm.onclick = () => {
+            val = onUpdate(val - 1 * step)
+            textH.textContent = val
+        }
+        let buttonHp = document.createElement("button");
+        buttonHp.textContent = "+"
+        buttonHp.onclick = () => {
+            val = onUpdate(val + 1 * step)
+            textH.textContent = val
+        }
+        let buttonHpp = document.createElement("button");
+        buttonHpp.textContent = "++"
+        buttonHpp.onclick = () => {
+            val = onUpdate(val + 10 * step)
+            textH.textContent = val
+        }
+        let buttonHppp = document.createElement("button");
+        buttonHppp.textContent = "+++"
+        buttonHppp.onclick = () => {
+            val = onUpdate(val + 100 * step)
+            textH.textContent = val
+        }
+
+        let divH = document.createElement("div");
+        divH.appendChild(buttonHmmm)
+        divH.appendChild(buttonHmm)
+        divH.appendChild(buttonHm)
+        divH.appendChild(textH)
+        divH.appendChild(buttonHp)
+        divH.appendChild(buttonHpp)
+        divH.appendChild(buttonHppp)
+
+        body.appendChild(divH)
+    }
+
+    addControl(heading, (newHead) => {
+        heading = newHead
+        if(heading < 0) {
+            heading += 360
+        }
+        if(heading >= 360) {
+            heading -= 360
+        }
+        return heading
+    }, 1)
+    addControl(velocity, (newVel) => {
+        velocity = newVel
+        if(velocity < 0) {
+            velocity = 0
+        }
+        return velocity
+    }, 1)
+    addControl(horizontalVelocity, (newHVel) => {
+        horizontalVelocity = newHVel
+        return horizontalVelocity
+    }, 10)
 }
