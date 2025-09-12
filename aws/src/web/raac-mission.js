@@ -43,14 +43,15 @@ function error(msg) {
 let positionUpdated = () => {}
 
 if(navigator.geolocation) {
+    clear(main);
+    main.appendChild(document.createTextNode("Waiting for Geolocation..."));
     watchId = navigator.geolocation.watchPosition((position) => {
         positionUpdated(position);
     }, null, {
         enableHighAccuracy: true
     })
     positionUpdated = (newPos) => {
-        if(false) {
-        // if(newPos.altitude == null) {
+        if(newPos.coords.altitude === null) {
             error("No Altitude in Geolocation")
         } else {
             startGame(newPos);
@@ -66,7 +67,7 @@ class GameObj {
         this.y = y;
         this.alt = alt;
     }
-    update() { }
+    update(time) { }
 }
 
 class MyPlane extends GameObj {
@@ -79,8 +80,14 @@ class MyPlane extends GameObj {
             new Bomb(),
             new Bomb(),
         ]
+        this.waypoints = []
         this.selectedWeapon = null
         this.time = 0
+        this.vx = 0
+        this.vy = 0
+    }
+
+    update(time) {
     }
 
     updatePos(time, x, y, alt) {
@@ -90,12 +97,13 @@ class MyPlane extends GameObj {
         this.x = x;
         this.y = y;
         this.alt = alt;
-        this.time = time;
+        this.time = time
 
         let dx = this.x - oldX;
         let dy = this.y - oldY;
         let dt = this.time - oldTime;
-        this.vel = Math.sqrt(dx * dx + dy * dy) / dt;
+        this.vx = dx / dt
+        this.vy = dy / dt
         this.heading = Math.PI / 2 - Math.atan2(dy, dx)
         if(this.heading < 0) {
             this.heading += 2 * Math.PI
@@ -103,16 +111,29 @@ class MyPlane extends GameObj {
 
         for (let weap of this.weapons) {
             if(weap != null) {
-                weap.updateFromPlane(time, x, y, alt, this.heading, this.vel)
+                weap.updateFromPlane(x, y, alt, this.vx, this.vy)
             }
         }
     }
 
-    drop() {
+    dropPressed() {
         if(this.selectedWeapon != null) {
             this.weapons[this.selectedWeapon].drop(this.time)
             this.weapons[this.selectedWeapon] = null
             this.selectedWeapon = null
+        }
+    }
+
+    weaponPressed(i) {
+        if(i === this.selectedWeapon) {
+            this.selectedWeapon = null
+        } else if(this.weapons[i] !== null) {
+            this.selectedWeapon = i
+        }
+    }
+    waypointPressed(i) {
+        if(this.selectedWeapon != null && this.weapons[this.selectedWeapon] !== null) {
+            this.weapons[this.selectedWeapon].target = this.waypoints[i]
         }
     }
 }
@@ -133,29 +154,33 @@ class Waypoint extends GameObj {
 class Bomb extends GameObj {
     constructor() {
         super(0, 0, 0);
-        this.heading = 0
-        this.vel = 0
+        this.vx = 0
+        this.vy = 0
         this.target = null
         this.impactPoint = {
             x: 0,
             y: 0,
             radius: 0,
         }
+        this.impactPoint2 = {
+            x: 0,
+            y: 0,
+        }
         this.falling = false
         this.inRange = false
     }
-    updateFromPlane(time, x, y, alt, vel) {
+    updateFromPlane(x, y, alt, vx, vy) {
         this.x = x
         this.y = y
         this.alt = alt
-        this.vel = vel
+        this.vx = vx
+        this.vy = vy
 
         let t = Math.sqrt(2 * this.alt / 32.174)
-        let v = 0.75 * this.vel
 
         this.impactPoint = {
-            x: this.x + Math.sin(this.heading) * v * t,
-            y: this.y + Math.cos(this.heading) * v * t,
+            x: this.x + 0.75 * vx * t,
+            y: this.y + 0.75 * vy * t,
             // 0.2 rad = +/- 10 graden
             // 6000 ft per nm
             radius: 0.2 * this.alt / 6000
@@ -168,7 +193,6 @@ class Bomb extends GameObj {
             let dy = this.impactPoint.y - this.target.y;
             let r = this.impactPoint.radius;
             this.inRange = dx * dx + dy * dy < r * r;
-            this.inRange = true
         }
     }
 
@@ -179,20 +203,47 @@ class Bomb extends GameObj {
             this.alt = this.dropAlt - deltaAlt
             if(this.alt < 0) {
                 this.falling = false
+                return
             }
+
+            this.x = this.dropX + this.vx * deltaTime
+            this.y = this.dropY + this.vy * deltaTime
+
             let u = (this.dropAlt - this.alt) / this.dropAlt
-            this.x = u * this.target.x + (1 - u) * this.dropX
-            this.y = u * this.target.y + (1 - u) * this.dropY
+            this.x = u * this.impactPoint2.x + (1 - u) * this.dropX
+            this.y = u * this.impactPoint2.y + (1 - u) * this.dropY
         }
     }
 
     drop(time) {
         this.falling = true
-        this.vel = 0.75 * this.vel
         this.dropX = this.x
         this.dropY = this.y
+        this.vx = 0.75 * this.vx
+        this.vy = 0.75 * this.vy
         this.dropAlt = this.alt
         this.dropTime = time
+
+        if(this.target === null) {
+            this.impactPoint2 = this.impactPoint
+        } else {
+            let ox = this.target.x - this.impactPoint.x;
+            let oy = this.target.y - this.impactPoint.y;
+            let offset = Math.sqrt(ox * ox + oy * oy)
+            if (offset <= this.impactPoint.radius) {
+                this.impactPoint2 = {
+                    x: this.target.x,
+                    y: this.target.y
+                }
+            } else {
+                let adjustedOffset = this.impactPoint.radius
+                let u = adjustedOffset / offset
+                this.impactPoint2 = {
+                    x: u * this.target.x + (1 - u) * this.impactPoint.x,
+                    y: u * this.target.y + (1 - u) * this.impactPoint.y
+                }
+            }
+        }
     }
 }
 
@@ -204,9 +255,11 @@ function rotate(xy, angle) {
 }
 
 function startGame(lastRawPos) {
+    const canvasSize = 560
+
     let objects = []
     let me = new MyPlane(0, 0, 0, 0);
-
+    let piraeusstraat = new Waypoint(lonToX1(4.413013), latToY1(51.234931), 0);
     let ekere = new Waypoint(lonToX1(4.435213), latToY1(51.284352), 0);
     let hotel = new Waypoint(lonToX1(4.807622), latToY1(51.173261), 0);
     let duffy = new Waypoint(lonToX1(4.494610), latToY1(51.085801), 0);
@@ -216,25 +269,74 @@ function startGame(lastRawPos) {
     let ehwo = new SAM(lonToX3(4, 20, 30), latToY3(51, 26, 56), 0, 8);
     let ebbr = new SAM(lonToX3(4, 29,  4), latToY3(50, 54,  5), 0, 10);
 
+    // let waypoints = [piraeusstraat, hotel, duffy, tango]
+    let waypoints = [ekere, hotel, duffy, tango]
+    me.waypoints = waypoints
+
     objects.push(me)
     objects.push(...me.weapons)
-    objects.push(ekere, hotel, duffy, tango)
+    objects.push(...waypoints)
     objects.push(ehmz, ehwo, ebbr)
 
-    // TODO clean up
-    me.selectedWeapon = 0
-    me.weapons[0].target = ekere
+    let mapScales = [40, 20, 10, 5, 2.5, 1]
+    let mapScale = 2
 
-    let mapScale = 40
-    let scale = 400 / mapScale
     clear(main)
 
     let canvas = document.createElement("canvas");
-    canvas.width = 800
-    canvas.height = 800
+    canvas.width = canvasSize
+    canvas.height = canvasSize
+    main.appendChild(canvas)
     let ctx = canvas.getContext("2d");
 
-    main.appendChild(canvas)
+    let controls = document.createElement("canvas");
+    controls.width = canvasSize
+    let controlHeight = canvasSize / 4;
+    controls.height = controlHeight
+    main.appendChild(controls)
+    let ctrl = controls.getContext("2d");
+
+    let dropButton = new Path2D();
+    dropButton.arc(canvasSize - controlHeight/4, controlHeight / 4 * 3, controlHeight / 5, 0, Math.PI * 2);
+
+    let weaponPath = []
+    for (let i = 0; i < 4; i++) {
+        let weapPath = new Path2D();
+        weapPath.arc(i * controlHeight / 2 + controlHeight / 4, controlHeight / 4, controlHeight / 5, 0, Math.PI * 2);
+        weaponPath.push(weapPath)
+    }
+
+    let waypointPath = []
+    for (let i = 0; i < 4; i++) {
+        let wpPath = new Path2D();
+        wpPath.arc(i * controlHeight / 2 + controlHeight / 4, controlHeight / 4 * 3, controlHeight / 5, 0, Math.PI * 2);
+        waypointPath.push(wpPath)
+    }
+
+    let scalePath = new Path2D()
+    scalePath.rect(controlHeight * 2.55, controlHeight * 0.05, controlHeight * 0.4, controlHeight * 0.4)
+
+    controls.onclick = (ev) => {
+        if(ctrl.isPointInPath(dropButton, ev.offsetX, ev.offsetY)) {
+            me.dropPressed()
+        }
+        for (let i = 0; i < 4; i++) {
+            let weapPath = weaponPath[i]
+            if(ctrl.isPointInPath(weapPath, ev.offsetX, ev.offsetY)) {
+                me.weaponPressed(i)
+            }
+        }
+        for (let i = 0; i < 4; i++) {
+            let wpPath = waypointPath[i]
+            if(ctrl.isPointInPath(wpPath, ev.offsetX, ev.offsetY)) {
+                me.waypointPressed(i)
+            }
+        }
+        if(ctrl.isPointInPath(scalePath, ev.offsetX, ev.offsetY)) {
+            mapScale = (mapScale + 1) % mapScales.length
+        }
+        draw()
+    }
 
     function onGeolocation(pos) {
         me.updatePos(
@@ -243,15 +345,24 @@ function startGame(lastRawPos) {
             latToY1(pos.coords.latitude),
             pos.coords.altitude * altScale
         )
-        draw()
     }
 
     positionUpdated = onGeolocation
     onGeolocation(lastRawPos)
 
+    setInterval(() => {
+        let time = new Date().getTime();
+        for (let object of objects) {
+            object.update(time / 1000)
+        }
+        draw()
+    }, 100)
+
     function draw() {
-        let c_x = me.x * scale - 400
-        let c_y = -me.y * scale - 400
+        let scale = canvasSize / (2 * mapScales[mapScale])
+
+        let c_x = me.x * scale - (canvasSize / 2)
+        let c_y = -me.y * scale - (canvasSize / 2)
 
         ctx.clearRect(0, 0, canvas.width, canvas.height)
         ctx.beginPath()
@@ -361,7 +472,8 @@ function startGame(lastRawPos) {
                 if(
                     (me.selectedWeapon != null &&
                     me.weapons[me.selectedWeapon] === object &&
-                    object.target != null) || object.falling
+                    object.target != null) ||
+                    (object.falling && object.target != null)
                 ) {
                     ctx.beginPath()
                     ctx.strokeStyle = "red"
@@ -390,5 +502,43 @@ function startGame(lastRawPos) {
                 }
             }
         }
+
+        ctrl.clearRect(0, 0, controls.width, controls.height)
+
+        ctrl.fillStyle = "red"
+        ctrl.fill(dropButton)
+
+        for (let i = 0; i < 4; i++) {
+            let weap = me.weapons[i];
+            if(weap != null) {
+                if(i === me.selectedWeapon) {
+                    ctrl.fillStyle = "green"
+                    ctrl.fill(weaponPath[i])
+                } else {
+                    ctrl.strokeStyle = "green"
+                    ctrl.stroke(weaponPath[i])
+                }
+            }
+        }
+
+        for (let i = 0; i < 4; i++) {
+            ctrl.fillStyle = "black"
+            ctrl.fill(waypointPath[i])
+        }
+
+        ctrl.strokeStyle = "black"
+        ctrl.stroke(scalePath)
+
+        ctrl.font = controlHeight / 5 + "px sans-serif"
+        ctrl.textAlign = "center"
+        ctrl.textBaseline = "middle"
+        ctrl.fillText(mapScales[mapScale].toString(), controlHeight * 2.75, controlHeight / 4)
+
+        ctrl.font = controlHeight / 10 + "px sans-serif"
+        ctrl.textAlign = "center"
+        ctrl.textBaseline = "middle"
+        ctrl.fillText(Math.round(me.heading / Math.PI * 180).toString(), controlHeight * 2.75, controlHeight * 0.6)
+        ctrl.fillText(Math.round(Math.sqrt(me.vx * me.vx + me.vy * me.vy) * 3600).toString(), controlHeight * 2.75, controlHeight * 0.75)
+        ctrl.fillText(Math.round(me.alt).toString(), controlHeight * 2.75, controlHeight * 0.9)
     }
 }
