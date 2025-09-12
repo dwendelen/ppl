@@ -1,13 +1,18 @@
-fun registerTerraform(environment: String) {
+fun registerTerraform(environment: String, autoApprove: Boolean = false) {
     tasks.register("terraform-$environment", Exec::class) {
         group = "deploy"
         workingDir(projectDir.resolve("src/tf/$environment"))
-        commandLine("terraform", "apply", "-refresh=false")
+        if(autoApprove) {
+            commandLine("terraform", "apply", "-refresh=false", "--auto-approve")
+        } else {
+            commandLine("terraform", "apply", "-refresh=false")
+        }
+
         standardInput = System.`in`
 //        dependsOn(project(":airspaces").tasks.named("assembleWeb"))
     }
 }
 
-registerTerraform("dev")
+registerTerraform("dev", true)
 //registerTerraform("tst", "jsBrowserDevelopmentWebpack")
 registerTerraform("prd")
