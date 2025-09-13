@@ -247,6 +247,9 @@ function rotate(xy, angle) {
 function startGame(time, x, y, alt) {
     const canvasSize = 560
 
+    let curX = canvasSize / 2
+    let curY = canvasSize / 2
+
     let objects = []
     let me = new MyPlane(0, 0, 0, 0);
     let piraeusstraat = new Waypoint(lonToX1(4.413013), latToY1(51.234931), 0);
@@ -278,6 +281,67 @@ function startGame(time, x, y, alt) {
     canvas.height = canvasSize
     main.appendChild(canvas)
     let ctx = canvas.getContext("2d");
+
+    function onStartMouse(ev) {
+        let lastDragX = ev.offsetX
+        let lastDragY = ev.offsetY
+
+        function onMoveMouse(ev) {
+            curX += ev.offsetX - lastDragX
+            curY += ev.offsetY - lastDragY
+            lastDragX = ev.offsetX
+            lastDragY = ev.offsetY
+            draw()
+        }
+
+        function onEnd() {
+            canvas.onmousemove = null
+            canvas.onmouseup = null
+            canvas.onmouseleave = null
+        }
+
+        canvas.onmousemove = onMoveMouse
+        canvas.onmouseup = onEnd
+        canvas.onmouseleave = onEnd
+    }
+
+    let touchPoints = {}
+    function onStartTouch(ev) {
+        for (let i = 0; i < ev.changedTouches.length; i++) {
+            let touch = ev.changedTouches[i];
+            touchPoints[touch.identifier] = {
+                x: touch.clientX,
+                y: touch.clientY
+            }
+        }
+    }
+    function onTouchMove(ev) {
+        for (let i = 0; i < ev.changedTouches.length; i++) {
+            let touch = ev.changedTouches[i];
+            let old = touchPoints[touch.identifier]
+            curX += touch.clientX - old.x
+            curY += touch.clientY - old.y
+            touchPoints[touch.identifier] = {
+                x: touch.clientX,
+                y: touch.clientY
+            }
+        }
+        draw()
+        // To prevent things like reshaping and refreshing etc
+        ev.preventDefault()
+    }
+    function onTouchEnd(ev) {
+        for (let i = 0; i < ev.changedTouches.length; i++) {
+            let touch = ev.changedTouches[i];
+            delete touchPoints[touch.identifier]
+        }
+    }
+    canvas.onmousedown = onStartMouse
+    // canvas.addEventListener("touchstart", onStartTouch)
+    canvas.ontouchstart = onStartTouch
+    canvas.ontouchmove = onTouchMove
+    canvas.ontouchend = onTouchEnd
+    canvas.ontouchcancel = onTouchEnd
 
     let controls = document.createElement("canvas");
     controls.width = canvasSize
@@ -487,6 +551,9 @@ function startGame(time, x, y, alt) {
                 }
             }
         }
+
+        ctx.strokeStyle = "black"
+        ctx.strokeRect(curX - 10, curY - 10, 20, 20)
 
         ctrl.clearRect(0, 0, controls.width, controls.height)
 
