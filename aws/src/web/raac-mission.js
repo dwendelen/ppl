@@ -251,7 +251,7 @@ function startGame(time, x, y, alt) {
     let curY = canvasSize / 2
 
     let objects = []
-    let me = new MyPlane(0, 0, 0, 0);
+    let me = new MyPlane(x, y, alt, 0);
     let piraeusstraat = new Waypoint(lonToX1(4.413013), latToY1(51.234931), 0);
     let ekere = new Waypoint(lonToX1(4.435213), latToY1(51.284352), 0);
     let hotel = new Waypoint(lonToX1(4.807622), latToY1(51.173261), 0);
@@ -277,8 +277,8 @@ function startGame(time, x, y, alt) {
     clear(main)
 
     let canvas = document.createElement("canvas");
-    canvas.width = canvasSize
-    canvas.height = canvasSize
+    canvas.width = canvasSize + 1
+    canvas.height = canvasSize + 1
     main.appendChild(canvas)
     let ctx = canvas.getContext("2d");
 
@@ -289,6 +289,18 @@ function startGame(time, x, y, alt) {
         function onMoveMouse(ev) {
             curX += ev.offsetX - lastDragX
             curY += ev.offsetY - lastDragY
+            if(curX < 0) {
+                curX = 0
+            }
+            if(curY < 0) {
+                curY = 0
+            }
+            if(curX > canvasSize) {
+                curX = canvasSize
+            }
+            if(curY > canvasSize) {
+                curY = canvasSize
+            }
             lastDragX = ev.offsetX
             lastDragY = ev.offsetY
             draw()
@@ -321,6 +333,18 @@ function startGame(time, x, y, alt) {
             let old = touchPoints[touch.identifier]
             curX += touch.clientX - old.x
             curY += touch.clientY - old.y
+            if(curX < 0) {
+                curX = 0
+            }
+            if(curY < 0) {
+                curY = 0
+            }
+            if(curX > canvasSize) {
+                curX = canvasSize
+            }
+            if(curY > canvasSize) {
+                curY = canvasSize
+            }
             touchPoints[touch.identifier] = {
                 x: touch.clientX,
                 y: touch.clientY
@@ -344,31 +368,31 @@ function startGame(time, x, y, alt) {
     canvas.ontouchcancel = onTouchEnd
 
     let controls = document.createElement("canvas");
-    controls.width = canvasSize
+    controls.width = canvasSize + 1
     let controlHeight = canvasSize / 4;
-    controls.height = controlHeight
+    controls.height = controlHeight + 1
     main.appendChild(controls)
     let ctrl = controls.getContext("2d");
 
     let dropButton = new Path2D();
-    dropButton.arc(canvasSize - controlHeight/4, controlHeight / 4 * 3, controlHeight / 5, 0, Math.PI * 2);
+    dropButton.arc(canvasSize - controlHeight/4 + 0.5, controlHeight / 4 * 3 + 0.5, controlHeight / 5, 0, Math.PI * 2);
 
     let weaponPath = []
     for (let i = 0; i < 4; i++) {
         let weapPath = new Path2D();
-        weapPath.arc(i * controlHeight / 2 + controlHeight / 4, controlHeight / 4, controlHeight / 5, 0, Math.PI * 2);
+        weapPath.arc(i * controlHeight / 2 + controlHeight / 4 + 0.5, controlHeight / 4 + 0.5, controlHeight / 5, 0, Math.PI * 2);
         weaponPath.push(weapPath)
     }
 
     let waypointPath = []
     for (let i = 0; i < 4; i++) {
         let wpPath = new Path2D();
-        wpPath.arc(i * controlHeight / 2 + controlHeight / 4, controlHeight / 4 * 3, controlHeight / 5, 0, Math.PI * 2);
+        wpPath.arc(i * controlHeight / 2 + controlHeight / 4 + 0.5, controlHeight / 4 * 3 + 0.5, controlHeight / 5, 0, Math.PI * 2);
         waypointPath.push(wpPath)
     }
 
     let scalePath = new Path2D()
-    scalePath.rect(controlHeight * 2.55, controlHeight * 0.05, controlHeight * 0.4, controlHeight * 0.4)
+    scalePath.rect(controlHeight * 2.55 + 0.5, controlHeight * 0.05 + 0.5, controlHeight * 0.4, controlHeight * 0.4)
 
     controls.onclick = (ev) => {
         if(ctrl.isPointInPath(dropButton, ev.offsetX, ev.offsetY)) {
@@ -410,8 +434,8 @@ function startGame(time, x, y, alt) {
     function draw() {
         let scale = canvasSize / (2 * mapScales[mapScale])
 
-        let c_x = me.x * scale - (canvasSize / 2)
-        let c_y = -me.y * scale - (canvasSize / 2)
+        let c_x = me.x * scale - (canvasSize / 2 + 0.5)
+        let c_y = -me.y * scale - (canvasSize / 2 + 0.5)
 
         ctx.clearRect(0, 0, canvas.width, canvas.height)
         ctx.beginPath()
@@ -436,7 +460,8 @@ function startGame(time, x, y, alt) {
         )
 
         ctx.closePath()
-        ctx.fillStyle = "lightblue";
+        ctx.fillStyle = "#000020";
+        // ctx.fillStyle = "lightblue";
         ctx.strokeStyle = "blue";
         ctx.fill()
         ctx.stroke()
@@ -448,8 +473,8 @@ function startGame(time, x, y, alt) {
                 let t2 = rotate([8, -14], -object.heading)
                 let t3 = rotate([-8, -14], -object.heading)
 
-                ctx.fillStyle = "blue"
-                ctx.strokeStyle = "blue"
+                ctx.fillStyle = "white"
+                ctx.strokeStyle = "white"
                 ctx.beginPath()
                 ctx.moveTo(
                     object.x * scale - c_x + p1[0],
@@ -494,7 +519,8 @@ function startGame(time, x, y, alt) {
                 }
             }
             if(object instanceof SAM) {
-                ctx.fillStyle = "#ffaaaa"
+                // ctx.fillStyle = "#ffaaaa"
+                ctx.fillStyle = "#200000"
                 ctx.strokeStyle = "red"
                 ctx.beginPath()
                 ctx.arc(
@@ -507,7 +533,8 @@ function startGame(time, x, y, alt) {
                 ctx.stroke()
             }
             if(object instanceof Waypoint) {
-                ctx.fillStyle = "black"
+                ctx.strokeStyle = "white"
+                // ctx.fillStyle = "white"
                 ctx.beginPath()
                 ctx.arc(
                     object.x * scale - c_x,
@@ -515,7 +542,8 @@ function startGame(time, x, y, alt) {
                     2,
                     0, Math.PI * 2
                 )
-                ctx.fill()
+                // ctx.fill()
+                ctx.stroke()
             }
             if(object instanceof Bomb) {
                 if(
@@ -552,8 +580,8 @@ function startGame(time, x, y, alt) {
             }
         }
 
-        ctx.strokeStyle = "black"
-        ctx.strokeRect(curX - 10, curY - 10, 20, 20)
+        ctx.strokeStyle = "white"
+        ctx.strokeRect(Math.round(curX) - 10 + 0.5, Math.round(curY) - 10 + 0.5, 20, 20)
 
         ctrl.clearRect(0, 0, controls.width, controls.height)
 
@@ -574,11 +602,11 @@ function startGame(time, x, y, alt) {
         }
 
         for (let i = 0; i < 4; i++) {
-            ctrl.fillStyle = "black"
+            ctrl.fillStyle = "white"
             ctrl.fill(waypointPath[i])
         }
 
-        ctrl.strokeStyle = "black"
+        ctrl.strokeStyle = "white"
         ctrl.stroke(scalePath)
 
         ctrl.font = controlHeight / 5 + "px sans-serif"
