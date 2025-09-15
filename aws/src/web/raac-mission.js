@@ -745,12 +745,17 @@ function loadGeoLocation() {
     if (navigator.geolocation) {
         error("Waiting for Geolocation...");
         watchId = navigator.geolocation.watchPosition((pos) => {
-            positionUpdated(
-                pos.timestamp / 1000,
-                lonToX1(pos.coords.longitude),
-                latToY1(pos.coords.latitude),
-                pos.coords.altitude * altScale
-            );
+            if(pos.coords.altitude === null) {
+                error("No altitude data")
+                navigator.geolocation.clearWatch(watchId)
+            } else {
+                positionUpdated(
+                    pos.timestamp / 1000,
+                    lonToX1(pos.coords.longitude),
+                    latToY1(pos.coords.latitude),
+                    pos.coords.altitude * altScale
+                );
+            }
         }, null, {
             enableHighAccuracy: true
         })
@@ -851,4 +856,14 @@ function loadFakeGeo() {
         horizontalVelocity = newHVel
         return horizontalVelocity
     }, 10)
+}
+
+// TODO
+if ("wakeLock" in navigator) {
+    navigator.wakeLock.request()
+}
+document.onvisibilitychange = (ev) => {
+    if(!document.hidden) {
+        navigator.wakeLock.request()
+    }
 }
