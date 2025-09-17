@@ -6,6 +6,7 @@ let arp = {
     lon: 4 + 27 / 60 + 37 / 3600,
     alt: 32
 }
+let altAmsl = 148
 let xScale = Math.cos(arp.lat * Math.PI / 180) * 60
 let yScale = 60
 let altScale = 1/0.3048
@@ -753,7 +754,7 @@ function loadGeoLocation() {
                     pos.timestamp / 1000,
                     lonToX1(pos.coords.longitude),
                     latToY1(pos.coords.latitude),
-                    pos.coords.altitude * altScale
+                    pos.coords.altitude * altScale - altAmsl
                 );
             }
         }, null, {
