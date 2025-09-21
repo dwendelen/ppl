@@ -868,3 +868,56 @@ document.onvisibilitychange = (ev) => {
         navigator.wakeLock.request()
     }
 }
+
+
+
+
+
+const canvasSize = 560
+let canvas = document.createElement("canvas");
+canvas.width = canvasSize + 1
+canvas.height = canvasSize + 1
+document.getElementsByTagName("body")[0].appendChild(canvas)
+let ctx = canvas.getContext("2d");
+
+const blockSize = 560 / 7
+const offset = blockSize / 2 + 0.5
+
+ctx.font = "30px courier"
+ctx.fillStyle = "white"
+ctx.strokeStyle = "white"
+ctx.textAlign = "center"
+ctx.textBaseline = "middle"
+
+ctx.fillText("WPN", offset + 1 * blockSize, 6.75 * blockSize + 0.5)
+ctx.fillText("RDR", offset + 2 * blockSize, 6.75 * blockSize + 0.5)
+ctx.fillText("HSD", offset + 3 * blockSize, 6.75 * blockSize + 0.5)
+ctx.fillText("FPL", offset + 4 * blockSize, 6.75 * blockSize + 0.5)
+// ctx.strokeRect(blockSize * 2.05 + 0.5, blockSize * 6.55 + 0.5, blockSize * 0.9, blockSize * 0.4)
+ctx.strokeRect(blockSize * 4.05 + 0.5, blockSize * 6.55 + 0.5, blockSize * 0.9, blockSize * 0.4)
+
+ctx.fillText("WYP", blockSize * 6.5 + 0.5, blockSize * 2 + 0.5)
+ctx.beginPath()
+ctx.moveTo(blockSize * 6.5 + 0.5, blockSize * 1.25 + 0.5)
+ctx.lineTo(blockSize * 6.2 + 0.5, blockSize * 1.5 + 0.5)
+ctx.lineTo(blockSize * 6.8 + 0.5, blockSize * 1.5 + 0.5)
+ctx.closePath()
+ctx.stroke()
+ctx.beginPath()
+ctx.moveTo(blockSize * 6.5 + 0.5, blockSize * 2.75 + 0.5)
+ctx.lineTo(blockSize * 6.2 + 0.5, blockSize * 2.5 + 0.5)
+ctx.lineTo(blockSize * 6.8 + 0.5, blockSize * 2.5 + 0.5)
+ctx.closePath()
+ctx.stroke()
+
+ctx.strokeStyle = "#404040"
+for (let i = 0; i < 0; i++) {
+    ctx.beginPath()
+    ctx.moveTo(0, i * blockSize + 0.5)
+    ctx.lineTo(canvasSize + 1, i * blockSize + 0.5)
+    ctx.stroke()
+    ctx.beginPath()
+    ctx.moveTo(i * blockSize + 0.5, 0)
+    ctx.lineTo(i * blockSize + 0.5, canvasSize + 1)
+    ctx.stroke()
+}
