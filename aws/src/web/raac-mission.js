@@ -798,14 +798,14 @@ class Page {
         this.avionics = avionics
     }
     addPageButtons() {
-        this.addButton('S', 0, "WPN",
+        this.addButton('S', 1, "WPN",
             () => false,
             () => {}
         )
-        this.addButton('S', 1, "RDR",
-            () => false,
-            () => {}
-        )
+        // this.addButton('S', 1, "RDR",
+        //     () => false,
+        //     () => {}
+        // )
         this.addButton('S', 2, "HSD",
             () => this.avionics.selectedPage === this.avionics.hsd,
             () => this.avionics.selectedPage = this.avionics.hsd
