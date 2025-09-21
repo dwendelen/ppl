@@ -14,6 +14,9 @@ let altScale = 1/0.3048
 let bombOffsetPerFoot = Math.tan(10 / 180 * Math.PI) / 6076
 let bombSpeedFactor = 0.75
 
+const canvasSize = 560
+const blockSize = canvasSize / 7
+
 // X in nm
 function latToY1(lat) {
     return (lat - arp.lat) * yScale
@@ -22,12 +25,38 @@ function latToY3(deg, min, sec) {
     return latToY1(deg + min / 60 + sec / 3600)
 }
 
+function yToLat1(y) {
+    return y / yScale + arp.lat
+}
+function yToLat3(y) {
+    let lat = yToLat1(y);
+    let deg = Math.floor(lat)
+    lat = (lat - deg) * 60
+    let min = Math.floor(lat)
+    lat = (lat - min) * 60
+    let sec = Math.round(lat)
+    return [deg, min, sec]
+}
+
 // Y in nm
 function lonToX1(lon) {
     return (lon - arp.lon) * xScale
 }
 function lonToX3(deg, min, sec) {
     return lonToX1(deg + min / 60 + sec / 3600)
+}
+
+function xToLon1(x) {
+    return x / xScale + arp.lon
+}
+function xToLon3(x) {
+    let lon = xToLon1(x);
+    let deg = Math.floor(lon)
+    lon = (lon - deg) * 60
+    let min = Math.floor(lon)
+    lon = (lon - min) * 60
+    let sec = Math.round(lon)
+    return [deg, min, sec]
 }
 
 function clear(elem) {
@@ -44,7 +73,7 @@ function error(msg) {
     }
 }
 
-let isTest = location.search === "?test"
+let isTest = location.search.includes("test")
 
 let positionUpdated = (time, x, y, alt) => {
     startGame(time, x, y, alt);
@@ -64,8 +93,6 @@ function rotate(xy, angle) {
 }
 
 function startGame(time, x, y, alt) {
-    const canvasSize = 560
-
     let world = new World();
     let me = new MyPlane(time, x, y, alt);
     world.add(me)
@@ -73,7 +100,7 @@ function startGame(time, x, y, alt) {
     world.add(me.weapons[1])
     world.add(me.weapons[2])
     world.add(me.weapons[3])
-    let avionics = new Avionics(me, canvasSize);
+    let avionics = new Avionics(me, world);
     avionics.loadWeapons()
 
     let piraeusstraat = new Waypoint(lonToX1(4.413013), latToY1(51.234931), 0);
@@ -166,6 +193,21 @@ function startGame(time, x, y, alt) {
     canvas.ontouchend = onTouchEnd
     canvas.ontouchcancel = onTouchEnd
 
+    canvas.onclick = (ev) => {
+        let x = Math.floor(ev.offsetX / blockSize)
+        let y = Math.floor(ev.offsetY / blockSize)
+
+        if(y === 0) {
+            avionics.onButton('N', x - 1)
+        } else if(y === 6) {
+            avionics.onButton('S', x - 1)
+        } else if(x === 0) {
+            avionics.onButton('W', y - 1)
+        } else if(x === 6) {
+            avionics.onButton('E', y - 1)
+        }
+    }
+
     let controls = document.createElement("canvas");
     controls.width = canvasSize + 1
     let controlHeight = canvasSize / 4;
@@ -190,9 +232,6 @@ function startGame(time, x, y, alt) {
         waypointPath.push(wpPath)
     }
 
-    let scalePath = new Path2D()
-    scalePath.rect(controlHeight * 2.55 + 0.5, controlHeight * 0.05 + 0.5, controlHeight * 0.4, controlHeight * 0.4)
-
     controls.onclick = (ev) => {
         if(ctrl.isPointInPath(dropButton, ev.offsetX, ev.offsetY)) {
             avionics.dropPressed()
@@ -206,11 +245,8 @@ function startGame(time, x, y, alt) {
         for (let i = 0; i < 4; i++) {
             let wpPath = waypointPath[i]
             if(ctrl.isPointInPath(wpPath, ev.offsetX, ev.offsetY)) {
-                avionics.waypointPressed(i)
+                avionics.waypointPressed(i + 1)
             }
-        }
-        if(ctrl.isPointInPath(scalePath, ev.offsetX, ev.offsetY)) {
-            avionics.scalePressed()
         }
         draw()
     }
@@ -230,163 +266,8 @@ function startGame(time, x, y, alt) {
     }, 100)
 
     function draw() {
-        let scale = canvasSize / (2 * avionics.mapScales[avionics.mapScale])
-
-        let c_x = avionics.x * scale - (canvasSize / 2 + 0.5)
-        let c_y = -avionics.y * scale - (canvasSize / 2 + 0.5)
-
         ctx.clearRect(0, 0, canvas.width, canvas.height)
-        ctx.beginPath()
-        let p1_x =  lonToX3( 4, 16,  0) * scale - c_x;
-        let p1_y = -latToY3(51, 16,  6) * scale - c_y;
-        let p2_x =  lonToX3( 4, 37, 37) * scale - c_x;
-        let p2_y = -latToY3(51, 16,  6) * scale - c_y;
-        let p3_x =  lonToX3( 4, 47, 46) * scale - c_x;
-        let p3_y = -latToY3(51, 10,  5) * scale - c_y;
-        let p4_x =  lonToX3( 4, 18, 45) * scale - c_x;
-        let p4_y = -latToY3(51,  4, 32) * scale - c_y;
-        let r_x =   lonToX3( 4, 26,  0) * scale - c_x;
-        let r_y =  -latToY3(51, 11,  7) * scale - c_y;
-
-        ctx.moveTo(p2_x, p2_y)
-        ctx.lineTo(p3_x, p3_y)
-        ctx.arc(
-            r_x, r_y, 8 * scale,
-            Math.atan2(p4_y - r_y, p4_x - r_x),
-            Math.atan2(p1_y - r_y, p1_x - r_x),
-            false
-        )
-
-        ctx.closePath()
-        ctx.fillStyle = "#000020";
-        ctx.strokeStyle = "blue";
-        ctx.fill()
-        ctx.stroke()
-
-        let heading = Math.atan2(avionics.vy, avionics.vx)
-        let p1 = rotate([8, 0], heading)
-        let t1 = rotate([0, 0], heading)
-        let t2 = rotate([-14, 8], heading)
-        let t3 = rotate([-14, -8], heading)
-
-        ctx.fillStyle = "white"
-        ctx.strokeStyle = "white"
-        ctx.beginPath()
-        ctx.moveTo(
-            avionics.x * scale - c_x + p1[0],
-            -avionics.y * scale - c_y - p1[1]
-        )
-        ctx.lineTo(
-            avionics.x * scale - c_x,
-            -avionics.y * scale - c_y
-        )
-        ctx.stroke()
-        ctx.beginPath()
-        ctx.moveTo(
-            avionics.x * scale - c_x + t1[0],
-            -avionics.y * scale - c_y - t1[1]
-        )
-        ctx.lineTo(
-            avionics.x * scale - c_x + t2[0],
-            -avionics.y * scale - c_y - t2[1]
-        )
-        ctx.lineTo(
-            avionics.x * scale - c_x + t3[0],
-            -avionics.y * scale - c_y - t3[1]
-        )
-        ctx.closePath()
-        ctx.fill()
-
-        if(avionics.selectedWeapon != null) {
-            let weapon = avionics.weapons[avionics.selectedWeapon];
-            let impact = weapon.impactPoint(
-                avionics.x,
-                avionics.y,
-                avionics.alt,
-                avionics.vx,
-                avionics.vy,
-            )
-            if(impact.inRange) {
-                ctx.strokeStyle = "green"
-            } else {
-                ctx.strokeStyle = "grey"
-            }
-            ctx.beginPath()
-            ctx.arc(
-                impact.x * scale - c_x,
-                -impact.y * scale - c_y,
-                impact.r * scale,
-                0, Math.PI * 2
-            )
-            ctx.stroke()
-
-            if(weapon.target !== null) {
-                ctx.beginPath()
-                ctx.strokeStyle = "red"
-                ctx.setLineDash([3, 5])
-                ctx.moveTo(
-                    avionics.x * scale - c_x,
-                    -avionics.y * scale - c_y
-                )
-                ctx.lineTo(
-                    weapon.target.x * scale - c_x,
-                    -weapon.target.y * scale - c_y,
-                )
-                ctx.stroke()
-                ctx.setLineDash([])
-            }
-        }
-
-        for (let i = 0; i < avionics.waypoints.length; i++) {
-            let waypoint = avionics.waypoints[i]
-            ctx.strokeStyle = "white"
-            ctx.fillStyle = "white"
-            ctx.beginPath()
-            ctx.arc(
-                waypoint.x * scale - c_x,
-                -waypoint.y * scale - c_y,
-                2,
-                0, Math.PI * 2
-            )
-            if(i === avionics.selectedWaypoint) {
-                ctx.fill()
-            } else {
-                ctx.stroke()
-            }
-        }
-
-        for (let object of world.objects) {
-            if(object instanceof SAM) {
-                ctx.fillStyle = "#200000"
-                ctx.strokeStyle = "red"
-                ctx.beginPath()
-                ctx.arc(
-                    object.x * scale - c_x,
-                    -object.y * scale - c_y,
-                    object.range * scale,
-                    0, Math.PI * 2
-                )
-                ctx.fill()
-                ctx.stroke()
-            }
-            if(object instanceof Bomb) {
-                if(object.falling) {
-                    ctx.fillStyle = "blue"
-                    ctx.beginPath()
-                    ctx.arc(
-                        object.x * scale - c_x,
-                        -object.y * scale - c_y,
-                        2,
-                        0, Math.PI * 2
-                    )
-                    ctx.fill()
-                }
-            }
-        }
-
-        ctx.strokeStyle = "white"
-        ctx.strokeRect(Math.round(avionics.curX) - 10 + 0.5, Math.round(avionics.curY) - 10 + 0.5, 20, 20)
-
+        avionics.selectedPage.draw(ctx)
 
         ctrl.clearRect(0, 0, controls.width, controls.height)
 
@@ -407,7 +288,7 @@ function startGame(time, x, y, alt) {
         }
 
         for (let i = 0; i < 4; i++) {
-            if(i === avionics.selectedWaypoint) {
+            if(i + 1 === avionics.selectedWaypoint) {
                 ctrl.fillStyle = "white"
                 ctrl.fill(waypointPath[i])
             } else {
@@ -416,21 +297,27 @@ function startGame(time, x, y, alt) {
             }
         }
 
-        ctrl.strokeStyle = "white"
-        ctrl.stroke(scalePath)
-
-        ctrl.fillStyle = "white"
-        ctrl.font = controlHeight / 5 + "px sans-serif"
-        ctrl.textAlign = "center"
-        ctrl.textBaseline = "middle"
-        ctrl.fillText(avionics.mapScales[avionics.mapScale].toString(), controlHeight * 2.75, controlHeight / 4)
-
         ctrl.font = controlHeight / 10 + "px sans-serif"
+        ctrl.fillStyle = "white"
         ctrl.textAlign = "center"
         ctrl.textBaseline = "middle"
         ctrl.fillText(Math.round(avionics.heading()).toString(), controlHeight * 2.75, controlHeight * 0.6)
         ctrl.fillText(Math.round(avionics.speed()).toString(), controlHeight * 2.75, controlHeight * 0.75)
         ctrl.fillText(Math.round(avionics.alt).toString(), controlHeight * 2.75, controlHeight * 0.9)
+
+        if(location.search.includes("grid")) {
+            ctx.strokeStyle = "#404040"
+            for (let i = 0; i < 8; i++) {
+                ctx.beginPath()
+                ctx.moveTo(0, i * blockSize + 0.5)
+                ctx.lineTo(canvasSize + 1, i * blockSize + 0.5)
+                ctx.stroke()
+                ctx.beginPath()
+                ctx.moveTo(i * blockSize + 0.5, 0)
+                ctx.lineTo(i * blockSize + 0.5, canvasSize + 1)
+                ctx.stroke()
+            }
+        }
     }
     draw()
 }
@@ -440,18 +327,26 @@ function startGame(time, x, y, alt) {
 class Avionics {
     mapScales = [40, 20, 10, 5, 2, 1]
 
-    constructor(me, canvasSize) {
+    constructor(me, world) {
         this.me = me
         this.weapons = [null, null, null, null]
         this.waypoints = []
         this.selectedWeapon = null
-        this.selectedWaypoint = null
+        this.selectedWaypoint = 0
         this.canvasSize = canvasSize
         this.curX = canvasSize / 2
         this.curY = canvasSize / 2
         this.mapScale = 2
 
+        this.hsd = new HsdPage(this, world)
+        this.fpl = new FplPage(this)
+        this.selectedPage = this.hsd
+
         this.update()
+        this.waypoints.push(new Waypoint(
+            this.x,
+            this.y
+        ))
     }
 
     update() {
@@ -520,7 +415,7 @@ class Avionics {
 
     waypointPressed(i) {
         if(i === this.selectedWaypoint) {
-            this.selectedWaypoint = null
+            this.selectedWaypoint = 0
         } else {
             this.selectedWaypoint = i
             if(this.selectedWeapon != null && this.weapons[this.selectedWeapon] !== null) {
@@ -529,8 +424,32 @@ class Avionics {
         }
     }
 
-    scalePressed() {
-        this.mapScale = (this.mapScale + 1) % this.mapScales.length
+    incrScale() {
+        if(this.mapScale > 0) {
+            this.mapScale--
+        }
+    }
+
+    decrScale() {
+        if(this.mapScale < this.mapScales.length - 1) {
+            this.mapScale++
+        }
+    }
+
+    incrWaypoint() {
+        if(this.selectedWaypoint < this.waypoints.length - 1) {
+            this.selectedWaypoint++
+        }
+    }
+
+    decrWaypoint() {
+        if(this.selectedWaypoint > 0) {
+            this.selectedWaypoint--
+        }
+    }
+
+    onButton(row, button) {
+        this.selectedPage.onButton(row, button)
     }
 }
 
@@ -869,55 +788,363 @@ document.onvisibilitychange = (ev) => {
     }
 }
 
+class Page {
+    constructor(avionics) {
+        this.north = [() => {}, () => {}, () => {}, () => {}, () => {}]
+        this.east = [() => {}, () => {}, () => {}, () => {}, () => {}]
+        this.south = [() => {}, () => {}, () => {}, () => {}, () => {}]
+        this.west = [() => {}, () => {}, () => {}, () => {}, () => {}]
+        this.toDraw = []
+        this.avionics = avionics
+    }
+    addPageButtons() {
+        this.addButton('S', 0, "WPN",
+            () => false,
+            () => {}
+        )
+        this.addButton('S', 1, "RDR",
+            () => false,
+            () => {}
+        )
+        this.addButton('S', 2, "HSD",
+            () => this.avionics.selectedPage === this.avionics.hsd,
+            () => this.avionics.selectedPage = this.avionics.hsd
+        )
+        this.addButton('S', 3, "FPL",
+            () => this.avionics.selectedPage === this.avionics.fpl,
+            () => this.avionics.selectedPage = this.avionics.fpl
+        )
+    }
+    onButton(row, button) {
+        this.resolveRow(row)[button]()
+    }
+    resolveRow(row) {
+        switch (row) {
+            case 'N':
+                return this.north
+            case 'E':
+                return this.east
+            case 'S':
+                return this.south
+            case 'W':
+                return this.west
+        }
+        throw "Invalid row " + row
+    }
+    addRocker(row, firstButton, getText, onIncr, onDecr) {
+        let x;
+        switch (row) {
+            case 'W':
+                x = 0
+                break
+            case 'E':
+                x = 6
+                break
+            default:
+                throw "Invalid row " + row
+        }
+        this.resolveRow(row)[firstButton] = onIncr;
+        this.resolveRow(row)[firstButton + 1] = onDecr;
+        this.toDraw.push((ctx) => {
+            ctx.font = "30px courier"
+            ctx.fillStyle = "white"
+            ctx.textAlign = "center"
+            ctx.textBaseline = "middle"
 
+            ctx.fillText(getText(), blockSize * (x + 0.5) + 0.5, blockSize * (firstButton + 2) + 0.5)
+            ctx.beginPath()
+            ctx.moveTo(blockSize * (x + 0.5) + 0.5, blockSize * (firstButton + 1.25) + 0.5)
+            ctx.lineTo(blockSize * (x + 0.2) + 0.5, blockSize * (firstButton + 1.5) + 0.5)
+            ctx.lineTo(blockSize * (x + 0.8) + 0.5, blockSize * (firstButton + 1.5) + 0.5)
+            ctx.closePath()
+            ctx.stroke()
+            ctx.beginPath()
+            ctx.moveTo(blockSize * (x + 0.5) + 0.5, blockSize * (firstButton + 2.75) + 0.5)
+            ctx.lineTo(blockSize * (x + 0.2) + 0.5, blockSize * (firstButton + 2.5) + 0.5)
+            ctx.lineTo(blockSize * (x + 0.8) + 0.5, blockSize * (firstButton + 2.5) + 0.5)
+            ctx.closePath()
+            ctx.stroke()
+        })
+    }
+    addButton(row, button, text, getSelected, onPressed) {
+        let x, y;
+        switch (row) {
+            case 'N':
+                x = button + 1.5
+                y = 0.25
+                break
+            case 'E':
+                x = 6.5
+                y = button + 1.5
+                break
+            case 'S':
+                x = button + 1.5
+                y = 6.75
+                break
+            case 'W':
+                x = 0.5
+                y = button + 1.5
+                break
+            default:
+                throw "Invalid row " + row
+        }
+        this.resolveRow(row)[button] = onPressed
+        this.toDraw.push((ctx) => {
+            ctx.font = "30px courier"
+            ctx.fillStyle = "white"
+            ctx.strokeStyle = "white"
+            ctx.textAlign = "center"
+            ctx.textBaseline = "middle"
 
+            ctx.fillText(text, blockSize * x + 0.5, blockSize * y + 0.5)
+            if(getSelected()) {
+                ctx.strokeRect(blockSize * (x - 0.45) + 0.5, blockSize * (y - 0.2) + 0.5, blockSize * 0.9, blockSize * 0.4)
+            }
+        })
+    }
 
+    drawWidgets(ctx) {
+        for (let toDraw of this.toDraw) {
+            toDraw(ctx)
+        }
+    }
+}
 
-const canvasSize = 560
-let canvas = document.createElement("canvas");
-canvas.width = canvasSize + 1
-canvas.height = canvasSize + 1
-document.getElementsByTagName("body")[0].appendChild(canvas)
-let ctx = canvas.getContext("2d");
+class HsdPage extends Page {
+    constructor(avionics, world) {
+        super(avionics)
+        this.world = world;
+        this.addPageButtons()
+        this.addRocker('W', 0,
+            () => avionics.mapScales[avionics.mapScale].toString(),
+            () => this.avionics.incrScale(),
+            () => this.avionics.decrScale()
+        )
+        this.addRocker('E', 0,
+            () => avionics.selectedWaypoint.toString(),
+            () => this.avionics.incrWaypoint(),
+            () => this.avionics.decrWaypoint()
+        )
+    }
+    draw(ctx) {
+        let scale = canvasSize / (2 * this.avionics.mapScales[this.avionics.mapScale])
 
-const blockSize = 560 / 7
-const offset = blockSize / 2 + 0.5
+        let c_x = this.avionics.x * scale - (canvasSize / 2 + 0.5)
+        let c_y = -this.avionics.y * scale - (canvasSize / 2 + 0.5)
 
-ctx.font = "30px courier"
-ctx.fillStyle = "white"
-ctx.strokeStyle = "white"
-ctx.textAlign = "center"
-ctx.textBaseline = "middle"
+        ctx.beginPath()
+        let p1_x =  lonToX3( 4, 16,  0) * scale - c_x;
+        let p1_y = -latToY3(51, 16,  6) * scale - c_y;
+        let p2_x =  lonToX3( 4, 37, 37) * scale - c_x;
+        let p2_y = -latToY3(51, 16,  6) * scale - c_y;
+        let p3_x =  lonToX3( 4, 47, 46) * scale - c_x;
+        let p3_y = -latToY3(51, 10,  5) * scale - c_y;
+        let p4_x =  lonToX3( 4, 18, 45) * scale - c_x;
+        let p4_y = -latToY3(51,  4, 32) * scale - c_y;
+        let r_x =   lonToX3( 4, 26,  0) * scale - c_x;
+        let r_y =  -latToY3(51, 11,  7) * scale - c_y;
 
-ctx.fillText("WPN", offset + 1 * blockSize, 6.75 * blockSize + 0.5)
-ctx.fillText("RDR", offset + 2 * blockSize, 6.75 * blockSize + 0.5)
-ctx.fillText("HSD", offset + 3 * blockSize, 6.75 * blockSize + 0.5)
-ctx.fillText("FPL", offset + 4 * blockSize, 6.75 * blockSize + 0.5)
-// ctx.strokeRect(blockSize * 2.05 + 0.5, blockSize * 6.55 + 0.5, blockSize * 0.9, blockSize * 0.4)
-ctx.strokeRect(blockSize * 4.05 + 0.5, blockSize * 6.55 + 0.5, blockSize * 0.9, blockSize * 0.4)
+        ctx.moveTo(p2_x, p2_y)
+        ctx.lineTo(p3_x, p3_y)
+        ctx.arc(
+            r_x, r_y, 8 * scale,
+            Math.atan2(p4_y - r_y, p4_x - r_x),
+            Math.atan2(p1_y - r_y, p1_x - r_x),
+            false
+        )
 
-ctx.fillText("WYP", blockSize * 6.5 + 0.5, blockSize * 2 + 0.5)
-ctx.beginPath()
-ctx.moveTo(blockSize * 6.5 + 0.5, blockSize * 1.25 + 0.5)
-ctx.lineTo(blockSize * 6.2 + 0.5, blockSize * 1.5 + 0.5)
-ctx.lineTo(blockSize * 6.8 + 0.5, blockSize * 1.5 + 0.5)
-ctx.closePath()
-ctx.stroke()
-ctx.beginPath()
-ctx.moveTo(blockSize * 6.5 + 0.5, blockSize * 2.75 + 0.5)
-ctx.lineTo(blockSize * 6.2 + 0.5, blockSize * 2.5 + 0.5)
-ctx.lineTo(blockSize * 6.8 + 0.5, blockSize * 2.5 + 0.5)
-ctx.closePath()
-ctx.stroke()
+        ctx.closePath()
+        ctx.fillStyle = "#000020";
+        ctx.strokeStyle = "blue";
+        ctx.fill()
+        ctx.stroke()
 
-ctx.strokeStyle = "#404040"
-for (let i = 0; i < 0; i++) {
-    ctx.beginPath()
-    ctx.moveTo(0, i * blockSize + 0.5)
-    ctx.lineTo(canvasSize + 1, i * blockSize + 0.5)
-    ctx.stroke()
-    ctx.beginPath()
-    ctx.moveTo(i * blockSize + 0.5, 0)
-    ctx.lineTo(i * blockSize + 0.5, canvasSize + 1)
-    ctx.stroke()
+        let heading = Math.atan2(this.avionics.vy, this.avionics.vx)
+        let p1 = rotate([8, 0], heading)
+        let t1 = rotate([0, 0], heading)
+        let t2 = rotate([-14, 8], heading)
+        let t3 = rotate([-14, -8], heading)
+
+        ctx.fillStyle = "white"
+        ctx.strokeStyle = "white"
+        ctx.beginPath()
+        ctx.moveTo(
+            this.avionics.x * scale - c_x + p1[0],
+            -this.avionics.y * scale - c_y - p1[1]
+        )
+        ctx.lineTo(
+            this.avionics.x * scale - c_x,
+            -this.avionics.y * scale - c_y
+        )
+        ctx.stroke()
+        ctx.beginPath()
+        ctx.moveTo(
+            this.avionics.x * scale - c_x + t1[0],
+            -this.avionics.y * scale - c_y - t1[1]
+        )
+        ctx.lineTo(
+            this.avionics.x * scale - c_x + t2[0],
+            -this.avionics.y * scale - c_y - t2[1]
+        )
+        ctx.lineTo(
+            this.avionics.x * scale - c_x + t3[0],
+            -this.avionics.y * scale - c_y - t3[1]
+        )
+        ctx.closePath()
+        ctx.fill()
+
+        if(this.avionics.selectedWeapon != null) {
+            let weapon = this.avionics.weapons[this.avionics.selectedWeapon];
+            let impact = weapon.impactPoint(
+                this.avionics.x,
+                this.avionics.y,
+                this.avionics.alt,
+                this.avionics.vx,
+                this.avionics.vy,
+            )
+            if(impact.inRange) {
+                ctx.strokeStyle = "green"
+            } else {
+                ctx.strokeStyle = "grey"
+            }
+            ctx.beginPath()
+            ctx.arc(
+                impact.x * scale - c_x,
+                -impact.y * scale - c_y,
+                impact.r * scale,
+                0, Math.PI * 2
+            )
+            ctx.stroke()
+
+            if(weapon.target !== null) {
+                ctx.beginPath()
+                ctx.strokeStyle = "red"
+                ctx.setLineDash([3, 5])
+                ctx.moveTo(
+                    this.avionics.x * scale - c_x,
+                    -this.avionics.y * scale - c_y
+                )
+                ctx.lineTo(
+                    weapon.target.x * scale - c_x,
+                    -weapon.target.y * scale - c_y,
+                )
+                ctx.stroke()
+                ctx.setLineDash([])
+            }
+        }
+
+        for (let i = 0; i < this.avionics.waypoints.length; i++) {
+            let waypoint = this.avionics.waypoints[i]
+            ctx.strokeStyle = "white"
+            ctx.fillStyle = "white"
+            ctx.beginPath()
+            ctx.arc(
+                waypoint.x * scale - c_x,
+                -waypoint.y * scale - c_y,
+                2,
+                0, Math.PI * 2
+            )
+            if(i === this.avionics.selectedWaypoint) {
+                ctx.fill()
+            } else {
+                ctx.stroke()
+            }
+        }
+
+        for (let object of this.world.objects) {
+            if(object instanceof SAM) {
+                ctx.fillStyle = "#200000"
+                ctx.strokeStyle = "red"
+                ctx.beginPath()
+                ctx.arc(
+                    object.x * scale - c_x,
+                    -object.y * scale - c_y,
+                    object.range * scale,
+                    0, Math.PI * 2
+                )
+                ctx.fill()
+                ctx.stroke()
+            }
+            if(object instanceof Bomb) {
+                if(object.falling) {
+                    ctx.fillStyle = "blue"
+                    ctx.beginPath()
+                    ctx.arc(
+                        object.x * scale - c_x,
+                        -object.y * scale - c_y,
+                        2,
+                        0, Math.PI * 2
+                    )
+                    ctx.fill()
+                }
+            }
+        }
+
+        ctx.strokeStyle = "white"
+        ctx.strokeRect(Math.round(this.avionics.curX) - 10 + 0.5, Math.round(this.avionics.curY) - 10 + 0.5, 20, 20)
+
+        super.drawWidgets(ctx)
+    }
+}
+
+class FplPage extends Page {
+    constructor(avionics) {
+        super(avionics);
+        this.addPageButtons()
+        this.addRocker('E', 0,
+            () => avionics.selectedWaypoint.toString(),
+            () => this.avionics.incrWaypoint(),
+            () => this.avionics.decrWaypoint()
+        )
+        this.addRocker('E', 3,
+            () => "MOV",
+            () => {},
+            () => {}
+        )
+        this.addButton('W', 0, "LAT", () => false, () => {})
+        this.addButton('W', 1, "LON", () => false, () => {})
+        this.addButton('W', 2, "ALT", () => false, () => {})
+    }
+
+    draw(ctx) {
+        ctx.font = "30px courier"
+        ctx.fillStyle = "white"
+        ctx.strokeStyle = "white"
+        ctx.textAlign = "left"
+        ctx.textBaseline = "middle"
+
+        let wp = this.avionics.waypoints[this.avionics.selectedWaypoint]
+        let lat = yToLat3(wp.y)
+        let latTxt = "N  " +
+            lat[0].toString().padStart(2, "0") + " " +
+            lat[1].toString().padStart(2, "0") + " " +
+            lat[2].toString().padStart(2, "0")
+        let lon = xToLon3(wp.x)
+        let lonTxt = "E " +
+            lon[0].toString().padStart(3, "0") + " " +
+            lon[1].toString().padStart(2, "0") + " " +
+            lon[2].toString().padStart(2, "0")
+
+        ctx.fillText(latTxt, 2 * blockSize, blockSize * 1.5)
+        ctx.fillText(lonTxt, 2 * blockSize, blockSize * 2.5)
+        ctx.fillText("0", 2 * blockSize, blockSize * 3.5)
+
+        ctx.fillText("Flight plan", blockSize, blockSize * 4.5)
+        ctx.fillText("01", blockSize * 1, blockSize * 5)
+        ctx.fillText("02", blockSize * 1.75, blockSize * 5)
+        ctx.fillText("03", blockSize * 2.5, blockSize * 5)
+        ctx.strokeRect(blockSize * (3.25 - 0.05) + 0.5, blockSize * (5 - 0.2) + 0.5, 0.55 * blockSize, 0.4 * blockSize)
+        ctx.fillText("04", blockSize * 3.25, blockSize * 5)
+        ctx.fillText("05", blockSize * 4, blockSize * 5)
+        ctx.fillText("06", blockSize * 4.75, blockSize * 5)
+        ctx.fillText("07", blockSize * 1, blockSize * 5.5)
+        ctx.fillText("08", blockSize * 1.75, blockSize * 5.5)
+        ctx.fillText("09", blockSize * 2.5, blockSize * 5.5)
+        ctx.fillText("10", blockSize * 3.25, blockSize * 5.5)
+        ctx.fillText("11", blockSize * 4, blockSize * 5.5)
+        ctx.fillText("12", blockSize * 4.75, blockSize * 5.5)
+        // ctx.fillText("07", blockSize * 5.5, blockSize * 5)
+
+        super.drawWidgets(ctx)
+    }
 }
