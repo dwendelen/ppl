@@ -925,6 +925,8 @@ class HsdPage extends Page {
             () => this.avionics.incrWaypoint(),
             () => this.avionics.decrWaypoint()
         )
+        this.addButton('N', 0, "TRK", () => false, () => {})
+        this.addButton('N', 1, "NTH", () => true, () => {})
     }
     draw(ctx) {
         let scale = canvasSize / (2 * this.avionics.mapScales[this.avionics.mapScale])
