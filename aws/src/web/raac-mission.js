@@ -1085,6 +1085,15 @@ class HsdPage extends Page {
         ctx.strokeStyle = "white"
         ctx.strokeRect(Math.round(this.avionics.curX) - 10 + 0.5, Math.round(this.avionics.curY) - 10 + 0.5, 20, 20)
 
+        ctx.font = "20px courier"
+        ctx.fillStyle = "white"
+        ctx.strokeStyle = "white"
+        ctx.textAlign = "center"
+        ctx.textBaseline = "middle"
+
+        ctx.fillText(Math.round(this.avionics.heading()).toString().padStart(3, '0'), blockSize * 0.5 + 0.5, blockSize * 0.35 + 0.5)
+        ctx.fillText(Math.round(this.avionics.speed()).toString().padStart(3, ' '), blockSize * 0.5 + 0.5, blockSize * 0.65 + 0.5)
+
         super.drawWidgets(ctx)
     }
 }
