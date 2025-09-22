@@ -206,6 +206,7 @@ function startGame(time, x, y, alt) {
         } else if(x === 6) {
             avionics.onButton('E', y - 1)
         }
+        draw()
     }
 
     let controls = document.createElement("canvas");
@@ -329,10 +330,14 @@ class Avionics {
 
     constructor(me, world) {
         this.me = me
+
         this.weapons = [null, null, null, null]
-        this.waypoints = []
         this.selectedWeapon = null
+
+        this.waypoints = []
         this.selectedWaypoint = 0
+        this.flightplan = []
+
         this.canvasSize = canvasSize
         this.curX = canvasSize / 2
         this.curY = canvasSize / 2
@@ -445,6 +450,30 @@ class Avionics {
     decrWaypoint() {
         if(this.selectedWaypoint > 0) {
             this.selectedWaypoint--
+        }
+    }
+
+    moveUp() {
+        let idx = this.flightplan.indexOf(this.selectedWaypoint)
+        if (idx === -1) {
+            this.flightplan.push(this.selectedWaypoint)
+        } else if(idx === 0) {
+            this.flightplan.shift()
+        } else {
+            this.flightplan[idx] = this.flightplan[idx - 1]
+            this.flightplan[idx - 1] = this.selectedWaypoint
+        }
+    }
+
+    moveDown() {
+        let idx = this.flightplan.indexOf(this.selectedWaypoint)
+        if (idx === -1) {
+            this.flightplan.unshift(this.selectedWaypoint)
+        } else if(idx === this.flightplan.length - 1) {
+            this.flightplan.pop()
+        } else {
+            this.flightplan[idx] = this.flightplan[idx + 1]
+            this.flightplan[idx + 1] = this.selectedWaypoint
         }
     }
 
@@ -1053,6 +1082,26 @@ class HsdPage extends Page {
             }
         }
 
+        if(this.avionics.flightplan.length !== 0) {
+            let wp0 = this.avionics.waypoints[this.avionics.flightplan[0]]
+            ctx.beginPath()
+            ctx.moveTo(
+                wp0.x * scale - c_x,
+                -wp0.y * scale - c_y,
+            )
+            for (let i = 1; i < this.avionics.flightplan.length; i++) {
+                let wp = this.avionics.waypoints[this.avionics.flightplan[i]]
+                ctx.lineTo(
+                    wp.x * scale - c_x,
+                    -wp.y * scale - c_y,
+                )
+            }
+            ctx.strokeStyle = "white"
+            ctx.setLineDash([3, 5])
+            ctx.stroke()
+            ctx.setLineDash([])
+        }
+
         for (let object of this.world.objects) {
             if(object instanceof SAM) {
                 ctx.fillStyle = "#200000"
@@ -1109,8 +1158,8 @@ class FplPage extends Page {
         )
         this.addRocker('E', 3,
             () => "MOV",
-            () => {},
-            () => {}
+            () => this.avionics.moveUp(),
+            () => this.avionics.moveDown(),
         )
         this.addButton('W', 0, "LAT", () => false, () => {})
         this.addButton('W', 1, "LON", () => false, () => {})
@@ -1136,28 +1185,26 @@ class FplPage extends Page {
             lon[1].toString().padStart(2, "0") + " " +
             lon[2].toString().padStart(2, "0")
 
-        ctx.fillText(latTxt, 2 * blockSize, blockSize * 1.5)
-        ctx.fillText(lonTxt, 2 * blockSize, blockSize * 2.5)
-        ctx.fillText("0", 2 * blockSize, blockSize * 3.5)
+        ctx.fillText(latTxt, 2 * blockSize + 0.5, blockSize * 1.5 + 0.5)
+        ctx.fillText(lonTxt, 2 * blockSize + 0.5, blockSize * 2.5 + 0.5)
+        ctx.fillText("0", 2 * blockSize + 0.5, blockSize * 3.5 + 0.5)
 
-        ctx.fillText("Flight plan", blockSize, blockSize * 4.5)
+        ctx.fillText("Flight plan", blockSize + 0.5, blockSize * 4.5 + 0.5)
 
         ctx.textAlign = "center"
 
-        ctx.fillText("...", blockSize * 1.25, blockSize * 5)
-        ctx.fillText("02", blockSize * 2, blockSize * 5)
-        ctx.fillText("03", blockSize * 2.75, blockSize * 5)
-        ctx.strokeRect(blockSize * (2.75 - 0.3) + 0.5, blockSize * (5 - 0.2) + 0.5, 0.6 * blockSize, 0.4 * blockSize)
-        ctx.fillText("04", blockSize * 3.5, blockSize * 5)
-        ctx.fillText("05", blockSize * 4.25, blockSize * 5)
-        ctx.fillText("06", blockSize * 5, blockSize * 5)
-        ctx.fillText("07", blockSize * 1.25, blockSize * 5.5)
-        ctx.fillText("08", blockSize * 2, blockSize * 5.5)
-        ctx.fillText("09", blockSize * 2.75, blockSize * 5.5)
-        ctx.fillText("10", blockSize * 3.5, blockSize * 5.5)
-        ctx.fillText("11", blockSize * 4.25, blockSize * 5.5)
-        ctx.fillText("...", blockSize * 5, blockSize * 5.5)
-        // ctx.fillText("07", blockSize * 5.5, blockSize * 5)
+        for (let i = 0; i < this.avionics.flightplan.length && i < 6; i++) {
+            ctx.fillText(this.avionics.flightplan[i].toString(), blockSize * (1.25 + i * 0.75) + 0.5, blockSize * 5 + 0.5)
+            if(this.avionics.flightplan[i] === this.avionics.selectedWaypoint) {
+                ctx.strokeRect(blockSize * (1.25 + i * 0.75 - 0.3) + 0.5, blockSize * (5 - 0.2) + 0.5, 0.6 * blockSize, 0.4 * blockSize)
+            }
+        }
+        for (let i = 6; i < this.avionics.flightplan.length && i < 12; i++) {
+            ctx.fillText(this.avionics.flightplan[i].toString(), blockSize * (1.25 + i * 0.75), blockSize * 5.5 + 0.5)
+            if(this.avionics.flightplan[i] === this.avionics.selectedWaypoint) {
+                ctx.strokeRect(blockSize * (1.25 + i * 0.75 - 0.3) + 0.5, blockSize * (5.5 - 0.2) + 0.5, 0.6 * blockSize, 0.4 * blockSize)
+            }
+        }
 
         super.drawWidgets(ctx)
     }
