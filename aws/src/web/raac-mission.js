@@ -84,7 +84,6 @@ if(isTest) {
     loadGeoLocation()
 }
 
-
 function rotate(xy, angle) {
     return [
         Math.cos(angle) * xy[0] - Math.sin(angle) * xy[1],
@@ -94,7 +93,7 @@ function rotate(xy, angle) {
 
 function startGame(time, x, y, alt) {
     let world = new World();
-    let me = new MyPlane(time, x, y, alt);
+    let me = new MyPlane(time, x, y, alt, world);
     world.add(me)
     world.add(me.weapons[0])
     world.add(me.weapons[1])
@@ -110,6 +109,17 @@ function startGame(time, x, y, alt) {
     let tango = new Waypoint(lonToX1(4.219559), latToY1(51.121318), 0);
 
     avionics.waypoints.push(ekere, hotel, duffy, tango)
+
+    // Ekere
+    world.add(new Structure(
+        lonToX1(4.435279), latToY1(51.284138), 0,
+        0.012, 0.03, Math.PI / 4
+    ))
+    // Hotel
+    world.add(new Structure(
+        lonToX1(4.806521), latToY1(51.172870), 0,
+        0.006, 0.085, -Math.PI / 3
+    ))
 
     let ehmz = new SAM(lonToX3(3, 43, 52), latToY3(51, 30, 44), 0, 20);
     let ehwo = new SAM(lonToX3(4, 20, 30), latToY3(51, 26, 56), 0, 8);
@@ -344,7 +354,7 @@ class Avionics {
         this.mapScale = 2
 
         this.hsd = new HsdPage(this, world)
-        this.fpl = new FplPage(this)
+        this.wpt = new WptPage(this)
         this.selectedPage = this.hsd
 
         this.update()
@@ -573,13 +583,13 @@ class GameObj {
 }
 
 class MyPlane extends GameObj {
-    constructor(time, x, y, alt) {
+    constructor(time, x, y, alt, world) {
         super(x, y, alt);
         this.weapons = [
-            new Bomb(),
-            new Bomb(),
-            new Bomb(),
-            new Bomb(),
+            new Bomb(world),
+            new Bomb(world),
+            new Bomb(world),
+            new Bomb(world),
         ]
         this.waypoints = []
         this.time = time
@@ -623,12 +633,13 @@ class SAM extends GameObj {
 }
 
 class Bomb extends GameObj {
-    constructor() {
+    constructor(world) {
         super(0, 0, 0);
         this.vx = 0
         this.vy = 0
         this.valt = 0
         this.falling = false
+        this.world = world
     }
 
     updateFromPlane(x, y, alt, vx, vy) {
@@ -651,11 +662,6 @@ class Bomb extends GameObj {
             this.alt -= dalt
             this.valt += 32.174 * dt
 
-            if(this.alt < 0) {
-                this.falling = false
-                return
-            }
-
             let dx = 0
             let dy = 0
 
@@ -674,8 +680,43 @@ class Bomb extends GameObj {
                 }
             }
 
+            let oldX = this.x
+            let oldY = this.y
+
             this.x += this.vx * dt + dx
             this.y += this.vy * dt + dy
+
+            let toDelete = null
+            for (let object of this.world.objects) {
+                if(object instanceof Structure &&
+                    this.alt <= object.alt && object.alt <= oldAlt
+                ) {
+                    let u = (oldAlt - object.alt) / (oldAlt - this.alt)
+                    let xAtAlt = this.x * u + oldX * (1 - u)
+                    let yAtAlt = this.y * u + oldY * (1 - u)
+
+                    if(object.isInside(xAtAlt, yAtAlt)) {
+                        toDelete = object
+                        break
+                    }
+                }
+            }
+            if(toDelete !== null) {
+                let idx = this.world.objects.indexOf(toDelete)
+                this.world.objects.splice(idx, 1)
+                idx = this.world.objects.indexOf(this)
+                if(idx !== -1) {
+                    this.world.objects.splice(idx, 1)
+                }
+            }
+
+
+            if(this.alt < 0) {
+                let idx = this.world.objects.indexOf(this)
+                if(idx !== -1) {
+                    this.world.objects.splice(idx, 1)
+                }
+            }
         }
     }
 
@@ -685,6 +726,21 @@ class Bomb extends GameObj {
         this.vx = bombSpeedFactor * this.vx
         this.vy = bombSpeedFactor * this.vy
         this.target = target
+    }
+}
+
+class Structure extends GameObj {
+    constructor(x, y, alt, dx, dy, rotation) {
+        super(x, y, alt);
+        this.dx = dx
+        this.dy = dy
+        this.rotation = rotation
+    }
+
+    isInside(x, y) {
+        let xy2 = rotate([x - this.x, y - this.y], -this.rotation)
+        return 0 <= xy2[0] && xy2[0] <= this.dx &&
+                0 <= xy2[1] && xy2[1] <= this.dy
     }
 }
 
@@ -839,9 +895,9 @@ class Page {
             () => this.avionics.selectedPage === this.avionics.hsd,
             () => this.avionics.selectedPage = this.avionics.hsd
         )
-        this.addButton('S', 3, "FPL",
-            () => this.avionics.selectedPage === this.avionics.fpl,
-            () => this.avionics.selectedPage = this.avionics.fpl
+        this.addButton('S', 3, "WPT",
+            () => this.avionics.selectedPage === this.avionics.wpt,
+            () => this.avionics.selectedPage = this.avionics.wpt
         )
     }
     onButton(row, button) {
@@ -1129,6 +1185,21 @@ class HsdPage extends Page {
                     ctx.fill()
                 }
             }
+            if(object instanceof Structure) {
+                ctx.strokeStyle = "red"
+
+                let xy1 = rotate([0, object.dy], object.rotation)
+                let xy2 = rotate([object.dx, object.dy], object.rotation)
+                let xy3 = rotate([object.dx, 0], object.rotation)
+
+                ctx.beginPath()
+                ctx.moveTo(object.x * scale - c_x, -object.y * scale - c_y)
+                ctx.lineTo((object.x + xy1[0]) * scale - c_x, -(object.y + xy1[1]) * scale - c_y)
+                ctx.lineTo((object.x + xy2[0]) * scale - c_x, -(object.y + xy2[1]) * scale - c_y)
+                ctx.lineTo((object.x + xy3[0]) * scale - c_x, -(object.y + xy3[1]) * scale - c_y)
+                ctx.closePath()
+                ctx.stroke()
+            }
         }
 
         ctx.strokeStyle = "white"
@@ -1147,7 +1218,7 @@ class HsdPage extends Page {
     }
 }
 
-class FplPage extends Page {
+class WptPage extends Page {
     constructor(avionics) {
         super(avionics);
         this.addPageButtons()
