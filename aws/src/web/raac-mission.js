@@ -120,7 +120,16 @@ function startGame(time, x, y, alt) {
         lonToX1(4.806521), latToY1(51.172870), 0,
         0.006, 0.085, -Math.PI / 3
     ))
-
+    // Duffy
+    world.add(new Structure(
+        lonToX1(4.494610), latToY1(51.085260), 0,
+        0.012, 0.06, 0.2
+    ))
+    // Tango
+    world.add(new Structure(
+        lonToX1(4.218908), latToY1(51.119683), 0,
+         0.02, 0.2, -Math.PI / 18
+    ))
     let ehmz = new SAM(lonToX3(3, 43, 52), latToY3(51, 30, 44), 0, 20);
     let ehwo = new SAM(lonToX3(4, 20, 30), latToY3(51, 26, 56), 0, 8);
     let ebbr = new SAM(lonToX3(4, 29,  4), latToY3(50, 54,  5), 0, 10);
