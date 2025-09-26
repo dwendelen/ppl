@@ -564,323 +564,7 @@ class BombInfo {
     }
 }
 
-// Simulation
 
-class World {
-    constructor() {
-        this.objects = []
-    }
-
-    add(object) {
-        this.objects.push(object)
-    }
-
-    update(time) {
-        for (let object of this.objects) {
-            object.update(time)
-        }
-    }
-}
-
-class GameObj {
-    constructor(x, y, alt) {
-        this.x = x;
-        this.y = y;
-        this.alt = alt;
-    }
-    update(time) { }
-}
-
-class MyPlane extends GameObj {
-    constructor(time, x, y, alt, world) {
-        super(x, y, alt);
-        this.weapons = [
-            new Bomb(world),
-            new Bomb(world),
-            new Bomb(world),
-            new Bomb(world),
-        ]
-        this.waypoints = []
-        this.time = time
-        this.vx = 0
-        this.vy = 0
-    }
-
-    updatePos(time, x, y, alt) {
-        let oldX = this.x
-        let oldY = this.y
-        let oldTime = this.time
-        this.x = x;
-        this.y = y;
-        this.alt = alt;
-        this.time = time
-
-        let dx = this.x - oldX;
-        let dy = this.y - oldY;
-        let dt = this.time - oldTime;
-        this.vx = dx / dt
-        this.vy = dy / dt
-
-        for (let weap of this.weapons) {
-            if(weap != null) {
-                weap.updateFromPlane(x, y, alt, this.vx, this.vy)
-            }
-        }
-    }
-
-    drop(weapon, target) {
-        this.weapons[weapon].drop(this.time, target)
-        this.weapons[weapon] = null
-    }
-}
-
-class SAM extends GameObj {
-    constructor(x, y, alt, range) {
-        super(x, y, alt);
-        this.range = range;
-    }
-}
-
-class Bomb extends GameObj {
-    constructor(world) {
-        super(0, 0, 0);
-        this.vx = 0
-        this.vy = 0
-        this.valt = 0
-        this.falling = false
-        this.world = world
-    }
-
-    updateFromPlane(x, y, alt, vx, vy) {
-        this.x = x
-        this.y = y
-        this.alt = alt
-        this.vx = vx
-        this.vy = vy
-    }
-
-    update(time) {
-        if(this.falling) {
-            let dt = time - this.time
-            this.time = time
-            let oldAlt = this.alt
-            let oldValt = this.valt
-
-            // This order is mathematically correct
-            let dalt = this.valt * dt + 32.174 * dt * dt / 2
-            this.alt -= dalt
-            this.valt += 32.174 * dt
-
-            let dx = 0
-            let dy = 0
-
-            if(this.target !== null) {
-                let maxOffset = dalt * bombOffsetPerFoot
-                let impPoint = calcImpactPoint(this.x, this.y, oldAlt, this.vx, this.vy, oldValt)
-                let dxx = this.target.x - impPoint.x
-                let dyy = this.target.y - impPoint.y
-                if(dxx * dxx + dyy + dyy <= maxOffset * maxOffset) {
-                    dx = dxx
-                    dy = dyy
-                } else {
-                    let angle = Math.atan2(dyy, dxx)
-                    dx = Math.cos(angle) * maxOffset
-                    dy = Math.sin(angle) * maxOffset
-                }
-            }
-
-            let oldX = this.x
-            let oldY = this.y
-
-            this.x += this.vx * dt + dx
-            this.y += this.vy * dt + dy
-
-            let toDelete = null
-            for (let object of this.world.objects) {
-                if(object instanceof Structure &&
-                    this.alt <= object.alt && object.alt <= oldAlt
-                ) {
-                    let u = (oldAlt - object.alt) / (oldAlt - this.alt)
-                    let xAtAlt = this.x * u + oldX * (1 - u)
-                    let yAtAlt = this.y * u + oldY * (1 - u)
-
-                    if(object.isInside(xAtAlt, yAtAlt)) {
-                        toDelete = object
-                        break
-                    }
-                }
-            }
-            if(toDelete !== null) {
-                let idx = this.world.objects.indexOf(toDelete)
-                this.world.objects.splice(idx, 1)
-                idx = this.world.objects.indexOf(this)
-                if(idx !== -1) {
-                    this.world.objects.splice(idx, 1)
-                }
-            }
-
-
-            if(this.alt < 0) {
-                let idx = this.world.objects.indexOf(this)
-                if(idx !== -1) {
-                    this.world.objects.splice(idx, 1)
-                }
-            }
-        }
-    }
-
-    drop(time, target) {
-        this.falling = true
-        this.time = time
-        this.vx = bombSpeedFactor * this.vx
-        this.vy = bombSpeedFactor * this.vy
-        this.target = target
-    }
-}
-
-class Structure extends GameObj {
-    constructor(x, y, alt, dx, dy, rotation) {
-        super(x, y, alt);
-        this.dx = dx
-        this.dy = dy
-        this.rotation = rotation
-    }
-
-    isInside(x, y) {
-        let xy2 = rotate([x - this.x, y - this.y], -this.rotation)
-        return 0 <= xy2[0] && xy2[0] <= this.dx &&
-                0 <= xy2[1] && xy2[1] <= this.dy
-    }
-}
-
-// Geolocation
-
-function loadGeoLocation() {
-    if (navigator.geolocation) {
-        error("Waiting for Geolocation...");
-        watchId = navigator.geolocation.watchPosition((pos) => {
-            if(pos.coords.altitude === null) {
-                error("No altitude data")
-                navigator.geolocation.clearWatch(watchId)
-            } else {
-                positionUpdated(
-                    pos.timestamp / 1000,
-                    lonToX1(pos.coords.longitude),
-                    latToY1(pos.coords.latitude),
-                    pos.coords.altitude * altScale - altAmsl
-                );
-            }
-        }, null, {
-            enableHighAccuracy: true
-        })
-    } else {
-        error("No Geolocation")
-    }
-}
-
-function loadFakeGeo() {
-    let x = 0
-    let y = 0
-    let alt = arp.alt
-    let heading = 0
-    let velocity = 0
-    let horizontalVelocity = 0
-    let time = 0
-
-    setInterval(() => {
-        time = new Date().getTime() / 1000
-        x += Math.sin(heading * Math.PI / 180) * velocity / 3600
-        y += Math.cos(heading * Math.PI / 180) * velocity / 3600
-        alt += horizontalVelocity / 60
-        positionUpdated(time, x, y, alt)
-    }, 1000)
-
-    let body = document.getElementsByTagName("body")[0]
-
-    function addControl(initVal, onUpdate, step) {
-        let val = initVal
-        let textH = document.createTextNode(val)
-        let buttonHmmm = document.createElement("button");
-        buttonHmmm.textContent = "---"
-        buttonHmmm.onclick = () => {
-            val = onUpdate(val - 100 * step)
-            textH.textContent = val
-        }
-        let buttonHmm = document.createElement("button");
-        buttonHmm.textContent = "--"
-        buttonHmm.onclick = () => {
-            val = onUpdate(val - 10 * step)
-            textH.textContent = val
-        }
-        let buttonHm = document.createElement("button");
-        buttonHm.textContent = "-"
-        buttonHm.onclick = () => {
-            val = onUpdate(val - 1 * step)
-            textH.textContent = val
-        }
-        let buttonHp = document.createElement("button");
-        buttonHp.textContent = "+"
-        buttonHp.onclick = () => {
-            val = onUpdate(val + 1 * step)
-            textH.textContent = val
-        }
-        let buttonHpp = document.createElement("button");
-        buttonHpp.textContent = "++"
-        buttonHpp.onclick = () => {
-            val = onUpdate(val + 10 * step)
-            textH.textContent = val
-        }
-        let buttonHppp = document.createElement("button");
-        buttonHppp.textContent = "+++"
-        buttonHppp.onclick = () => {
-            val = onUpdate(val + 100 * step)
-            textH.textContent = val
-        }
-
-        let divH = document.createElement("div");
-        divH.appendChild(buttonHmmm)
-        divH.appendChild(buttonHmm)
-        divH.appendChild(buttonHm)
-        divH.appendChild(textH)
-        divH.appendChild(buttonHp)
-        divH.appendChild(buttonHpp)
-        divH.appendChild(buttonHppp)
-
-        body.appendChild(divH)
-    }
-
-    addControl(heading, (newHead) => {
-        heading = newHead
-        if(heading < 0) {
-            heading += 360
-        }
-        if(heading >= 360) {
-            heading -= 360
-        }
-        return heading
-    }, 1)
-    addControl(velocity, (newVel) => {
-        velocity = newVel
-        if(velocity < 0) {
-            velocity = 0
-        }
-        return velocity
-    }, 1)
-    addControl(horizontalVelocity, (newHVel) => {
-        horizontalVelocity = newHVel
-        return horizontalVelocity
-    }, 10)
-}
-
-// TODO
-if ("wakeLock" in navigator) {
-    navigator.wakeLock.request()
-}
-document.onvisibilitychange = (ev) => {
-    if(!document.hidden) {
-        navigator.wakeLock.request()
-    }
-}
 
 class Page {
     constructor(avionics) {
@@ -1287,5 +971,325 @@ class WptPage extends Page {
         }
 
         super.drawWidgets(ctx)
+    }
+}
+
+// Mission
+
+// Simulation
+
+class World {
+    constructor() {
+        this.objects = []
+    }
+
+    add(object) {
+        this.objects.push(object)
+    }
+
+    update(time) {
+        for (let object of this.objects) {
+            object.update(time)
+        }
+    }
+}
+
+class GameObj {
+    constructor(x, y, alt) {
+        this.x = x;
+        this.y = y;
+        this.alt = alt;
+    }
+    update(time) { }
+}
+
+class MyPlane extends GameObj {
+    constructor(time, x, y, alt, world) {
+        super(x, y, alt);
+        this.weapons = [
+            new Bomb(world),
+            new Bomb(world),
+            new Bomb(world),
+            new Bomb(world),
+        ]
+        this.waypoints = []
+        this.time = time
+        this.vx = 0
+        this.vy = 0
+    }
+
+    updatePos(time, x, y, alt) {
+        let oldX = this.x
+        let oldY = this.y
+        let oldTime = this.time
+        this.x = x;
+        this.y = y;
+        this.alt = alt;
+        this.time = time
+
+        let dx = this.x - oldX;
+        let dy = this.y - oldY;
+        let dt = this.time - oldTime;
+        this.vx = dx / dt
+        this.vy = dy / dt
+
+        for (let weap of this.weapons) {
+            if(weap != null) {
+                weap.updateFromPlane(x, y, alt, this.vx, this.vy)
+            }
+        }
+    }
+
+    drop(weapon, target) {
+        this.weapons[weapon].drop(this.time, target)
+        this.weapons[weapon] = null
+    }
+}
+
+class SAM extends GameObj {
+    constructor(x, y, alt, range) {
+        super(x, y, alt);
+        this.range = range;
+    }
+}
+
+class Bomb extends GameObj {
+    constructor(world) {
+        super(0, 0, 0);
+        this.vx = 0
+        this.vy = 0
+        this.valt = 0
+        this.falling = false
+        this.world = world
+    }
+
+    updateFromPlane(x, y, alt, vx, vy) {
+        this.x = x
+        this.y = y
+        this.alt = alt
+        this.vx = vx
+        this.vy = vy
+    }
+
+    update(time) {
+        if(this.falling) {
+            let dt = time - this.time
+            this.time = time
+            let oldAlt = this.alt
+            let oldValt = this.valt
+
+            // This order is mathematically correct
+            let dalt = this.valt * dt + 32.174 * dt * dt / 2
+            this.alt -= dalt
+            this.valt += 32.174 * dt
+
+            let dx = 0
+            let dy = 0
+
+            if(this.target !== null) {
+                let maxOffset = dalt * bombOffsetPerFoot
+                let impPoint = calcImpactPoint(this.x, this.y, oldAlt, this.vx, this.vy, oldValt)
+                let dxx = this.target.x - impPoint.x
+                let dyy = this.target.y - impPoint.y
+                if(dxx * dxx + dyy * dyy <= maxOffset * maxOffset) {
+                    dx = dxx
+                    dy = dyy
+                } else {
+                    let angle = Math.atan2(dyy, dxx)
+                    dx = Math.cos(angle) * maxOffset
+                    dy = Math.sin(angle) * maxOffset
+                }
+            }
+
+            let oldX = this.x
+            let oldY = this.y
+
+            this.x += this.vx * dt + dx
+            this.y += this.vy * dt + dy
+
+            let toDelete = null
+            for (let object of this.world.objects) {
+                if(object instanceof Structure &&
+                    this.alt <= object.alt && object.alt <= oldAlt
+                ) {
+                    let u = (oldAlt - object.alt) / (oldAlt - this.alt)
+                    let xAtAlt = this.x * u + oldX * (1 - u)
+                    let yAtAlt = this.y * u + oldY * (1 - u)
+
+                    if(object.isInside(xAtAlt, yAtAlt)) {
+                        toDelete = object
+                        break
+                    }
+                }
+            }
+            if(toDelete !== null) {
+                let idx = this.world.objects.indexOf(toDelete)
+                this.world.objects.splice(idx, 1)
+                idx = this.world.objects.indexOf(this)
+                if(idx !== -1) {
+                    this.world.objects.splice(idx, 1)
+                }
+            }
+
+
+            if(this.alt < 0) {
+                let idx = this.world.objects.indexOf(this)
+                if(idx !== -1) {
+                    this.world.objects.splice(idx, 1)
+                }
+            }
+        }
+    }
+
+    drop(time, target) {
+        this.falling = true
+        this.time = time
+        this.vx = bombSpeedFactor * this.vx
+        this.vy = bombSpeedFactor * this.vy
+        this.target = target
+    }
+}
+
+class Structure extends GameObj {
+    constructor(x, y, alt, dx, dy, rotation) {
+        super(x, y, alt);
+        this.dx = dx
+        this.dy = dy
+        this.rotation = rotation
+    }
+
+    isInside(x, y) {
+        let xy2 = rotate([x - this.x, y - this.y], -this.rotation)
+        return 0 <= xy2[0] && xy2[0] <= this.dx &&
+                0 <= xy2[1] && xy2[1] <= this.dy
+    }
+}
+
+// Geolocation
+
+function loadGeoLocation() {
+    if (navigator.geolocation) {
+        error("Waiting for Geolocation...");
+        watchId = navigator.geolocation.watchPosition((pos) => {
+            if(pos.coords.altitude === null) {
+                error("No altitude data")
+                navigator.geolocation.clearWatch(watchId)
+            } else {
+                positionUpdated(
+                    pos.timestamp / 1000,
+                    lonToX1(pos.coords.longitude),
+                    latToY1(pos.coords.latitude),
+                    pos.coords.altitude * altScale - altAmsl
+                );
+            }
+        }, null, {
+            enableHighAccuracy: true
+        })
+    } else {
+        error("No Geolocation")
+    }
+}
+
+function loadFakeGeo() {
+    let x = 0
+    let y = 0
+    let alt = arp.alt
+    let heading = 0
+    let velocity = 0
+    let horizontalVelocity = 0
+    let time = 0
+
+    setInterval(() => {
+        time = new Date().getTime() / 1000
+        x += Math.sin(heading * Math.PI / 180) * velocity / 3600
+        y += Math.cos(heading * Math.PI / 180) * velocity / 3600
+        alt += horizontalVelocity / 60
+        positionUpdated(time, x, y, alt)
+    }, 1000)
+
+    let body = document.getElementsByTagName("body")[0]
+
+    function addControl(initVal, onUpdate, step) {
+        let val = initVal
+        let textH = document.createTextNode(val)
+        let buttonHmmm = document.createElement("button");
+        buttonHmmm.textContent = "---"
+        buttonHmmm.onclick = () => {
+            val = onUpdate(val - 100 * step)
+            textH.textContent = val
+        }
+        let buttonHmm = document.createElement("button");
+        buttonHmm.textContent = "--"
+        buttonHmm.onclick = () => {
+            val = onUpdate(val - 10 * step)
+            textH.textContent = val
+        }
+        let buttonHm = document.createElement("button");
+        buttonHm.textContent = "-"
+        buttonHm.onclick = () => {
+            val = onUpdate(val - 1 * step)
+            textH.textContent = val
+        }
+        let buttonHp = document.createElement("button");
+        buttonHp.textContent = "+"
+        buttonHp.onclick = () => {
+            val = onUpdate(val + 1 * step)
+            textH.textContent = val
+        }
+        let buttonHpp = document.createElement("button");
+        buttonHpp.textContent = "++"
+        buttonHpp.onclick = () => {
+            val = onUpdate(val + 10 * step)
+            textH.textContent = val
+        }
+        let buttonHppp = document.createElement("button");
+        buttonHppp.textContent = "+++"
+        buttonHppp.onclick = () => {
+            val = onUpdate(val + 100 * step)
+            textH.textContent = val
+        }
+
+        let divH = document.createElement("div");
+        divH.appendChild(buttonHmmm)
+        divH.appendChild(buttonHmm)
+        divH.appendChild(buttonHm)
+        divH.appendChild(textH)
+        divH.appendChild(buttonHp)
+        divH.appendChild(buttonHpp)
+        divH.appendChild(buttonHppp)
+
+        body.appendChild(divH)
+    }
+
+    addControl(heading, (newHead) => {
+        heading = newHead
+        if(heading < 0) {
+            heading += 360
+        }
+        if(heading >= 360) {
+            heading -= 360
+        }
+        return heading
+    }, 1)
+    addControl(velocity, (newVel) => {
+        velocity = newVel
+        if(velocity < 0) {
+            velocity = 0
+        }
+        return velocity
+    }, 1)
+    addControl(horizontalVelocity, (newHVel) => {
+        horizontalVelocity = newHVel
+        return horizontalVelocity
+    }, 10)
+}
+
+// TODO
+if ("wakeLock" in navigator) {
+    navigator.wakeLock.request()
+}
+document.onvisibilitychange = (ev) => {
+    if(!document.hidden) {
+        navigator.wakeLock.request()
     }
 }
