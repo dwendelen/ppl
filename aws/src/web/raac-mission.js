@@ -95,12 +95,7 @@ function startGame(time, x, y, alt) {
     let world = new World();
     let me = new MyPlane(time, x, y, alt, world);
     world.add(me)
-    world.add(me.weapons[0])
-    world.add(me.weapons[1])
-    world.add(me.weapons[2])
-    world.add(me.weapons[3])
     let avionics = new Avionics(me, world);
-    avionics.loadWeapons()
 
     let piraeusstraat = new Waypoint(lonToX1(4.413013), latToY1(51.234931), 0);
     let ekere = new Waypoint(lonToX1(4.435213), latToY1(51.284352), 0);
@@ -343,14 +338,17 @@ function startGame(time, x, y, alt) {
 }
 
 // Avionics
-
 class Avionics {
     mapScales = [40, 20, 10, 5, 2, 1]
 
     constructor(me, world) {
         this.me = me
-
-        this.weapons = [null, null, null, null]
+        this.weapons = [
+            new BombInfo(),
+            new BombInfo(),
+            new BombInfo(),
+            new BombInfo()
+        ]
         this.selectedWeapon = null
 
         this.waypoints = []
@@ -379,16 +377,6 @@ class Avionics {
         this.alt = this.me.alt
         this.vx = this.me.vx
         this.vy = this.me.vy
-    }
-
-    loadWeapons() {
-        for (let i = 0; i < 4; i++) {
-            if(this.me.weapons[i] === null) {
-                this.weapons[i] = null
-            } else {
-                this.weapons[i] = new BombInfo()
-            }
-        }
     }
 
     heading() {
@@ -866,17 +854,15 @@ class HsdPage extends Page {
                 ctx.stroke()
             }
             if(object instanceof Bomb) {
-                if(object.falling) {
-                    ctx.fillStyle = "blue"
-                    ctx.beginPath()
-                    ctx.arc(
-                        object.x * scale - c_x,
-                        -object.y * scale - c_y,
-                        2,
-                        0, Math.PI * 2
-                    )
-                    ctx.fill()
-                }
+                ctx.fillStyle = "blue"
+                ctx.beginPath()
+                ctx.arc(
+                    object.x * scale - c_x,
+                    -object.y * scale - c_y,
+                    2,
+                    0, Math.PI * 2
+                )
+                ctx.fill()
             }
             if(object instanceof Structure) {
                 ctx.strokeStyle = "red"
@@ -1006,12 +992,7 @@ class GameObj {
 class MyPlane extends GameObj {
     constructor(time, x, y, alt, world) {
         super(x, y, alt);
-        this.weapons = [
-            new Bomb(world),
-            new Bomb(world),
-            new Bomb(world),
-            new Bomb(world),
-        ]
+        this.world = world
         this.waypoints = []
         this.time = time
         this.vx = 0
@@ -1032,17 +1013,15 @@ class MyPlane extends GameObj {
         let dt = this.time - oldTime;
         this.vx = dx / dt
         this.vy = dy / dt
-
-        for (let weap of this.weapons) {
-            if(weap != null) {
-                weap.updateFromPlane(x, y, alt, this.vx, this.vy)
-            }
-        }
     }
 
     drop(weapon, target) {
-        this.weapons[weapon].drop(this.time, target)
-        this.weapons[weapon] = null
+        this.world.add(new Bomb(
+            this.world, this.time,
+            this.x, this.y, this.alt,
+            bombSpeedFactor * this.vx, bombSpeedFactor * this.vy,
+            target
+        ))
     }
 }
 
@@ -1054,99 +1033,82 @@ class SAM extends GameObj {
 }
 
 class Bomb extends GameObj {
-    constructor(world) {
-        super(0, 0, 0);
-        this.vx = 0
-        this.vy = 0
-        this.valt = 0
-        this.falling = false
+    constructor(world, time, x, y, alt, vx, vy, target) {
+        super(x, y, alt)
         this.world = world
-    }
-
-    updateFromPlane(x, y, alt, vx, vy) {
-        this.x = x
-        this.y = y
-        this.alt = alt
+        this.time = time
         this.vx = vx
         this.vy = vy
+        this.valt = 0
+        this.target = target
     }
 
     update(time) {
-        if(this.falling) {
-            let dt = time - this.time
-            this.time = time
-            let oldAlt = this.alt
-            let oldValt = this.valt
+        let dt = time - this.time
+        this.time = time
+        let oldAlt = this.alt
+        let oldValt = this.valt
 
-            // This order is mathematically correct
-            let dalt = this.valt * dt + 32.174 * dt * dt / 2
-            this.alt -= dalt
-            this.valt += 32.174 * dt
+        // This order is mathematically correct
+        let dalt = this.valt * dt + 32.174 * dt * dt / 2
+        this.alt -= dalt
+        this.valt += 32.174 * dt
 
-            let dx = 0
-            let dy = 0
+        let dx = 0
+        let dy = 0
 
-            if(this.target !== null) {
-                let maxOffset = dalt * bombOffsetPerFoot
-                let impPoint = calcImpactPoint(this.x, this.y, oldAlt, this.vx, this.vy, oldValt)
-                let dxx = this.target.x - impPoint.x
-                let dyy = this.target.y - impPoint.y
-                if(dxx * dxx + dyy * dyy <= maxOffset * maxOffset) {
-                    dx = dxx
-                    dy = dyy
-                } else {
-                    let angle = Math.atan2(dyy, dxx)
-                    dx = Math.cos(angle) * maxOffset
-                    dy = Math.sin(angle) * maxOffset
-                }
+        if(this.target !== null) {
+            let maxOffset = dalt * bombOffsetPerFoot
+            let impPoint = calcImpactPoint(this.x, this.y, oldAlt, this.vx, this.vy, oldValt)
+            let dxx = this.target.x - impPoint.x
+            let dyy = this.target.y - impPoint.y
+            if(dxx * dxx + dyy * dyy <= maxOffset * maxOffset) {
+                dx = dxx
+                dy = dyy
+            } else {
+                let angle = Math.atan2(dyy, dxx)
+                dx = Math.cos(angle) * maxOffset
+                dy = Math.sin(angle) * maxOffset
             }
+        }
 
-            let oldX = this.x
-            let oldY = this.y
+        let oldX = this.x
+        let oldY = this.y
 
-            this.x += this.vx * dt + dx
-            this.y += this.vy * dt + dy
+        this.x += this.vx * dt + dx
+        this.y += this.vy * dt + dy
 
-            let toDelete = null
-            for (let object of this.world.objects) {
-                if(object instanceof Structure &&
-                    this.alt <= object.alt && object.alt <= oldAlt
-                ) {
-                    let u = (oldAlt - object.alt) / (oldAlt - this.alt)
-                    let xAtAlt = this.x * u + oldX * (1 - u)
-                    let yAtAlt = this.y * u + oldY * (1 - u)
+        let toDelete = null
+        for (let object of this.world.objects) {
+            if(object instanceof Structure &&
+                this.alt <= object.alt && object.alt <= oldAlt
+            ) {
+                let u = (oldAlt - object.alt) / (oldAlt - this.alt)
+                let xAtAlt = this.x * u + oldX * (1 - u)
+                let yAtAlt = this.y * u + oldY * (1 - u)
 
-                    if(object.isInside(xAtAlt, yAtAlt)) {
-                        toDelete = object
-                        break
-                    }
-                }
-            }
-            if(toDelete !== null) {
-                let idx = this.world.objects.indexOf(toDelete)
-                this.world.objects.splice(idx, 1)
-                idx = this.world.objects.indexOf(this)
-                if(idx !== -1) {
-                    this.world.objects.splice(idx, 1)
-                }
-            }
-
-
-            if(this.alt < 0) {
-                let idx = this.world.objects.indexOf(this)
-                if(idx !== -1) {
-                    this.world.objects.splice(idx, 1)
+                if(object.isInside(xAtAlt, yAtAlt)) {
+                    toDelete = object
+                    break
                 }
             }
         }
-    }
+        if(toDelete !== null) {
+            let idx = this.world.objects.indexOf(toDelete)
+            this.world.objects.splice(idx, 1)
+            idx = this.world.objects.indexOf(this)
+            if(idx !== -1) {
+                this.world.objects.splice(idx, 1)
+            }
+        }
 
-    drop(time, target) {
-        this.falling = true
-        this.time = time
-        this.vx = bombSpeedFactor * this.vx
-        this.vy = bombSpeedFactor * this.vy
-        this.target = target
+
+        if(this.alt < 0) {
+            let idx = this.world.objects.indexOf(this)
+            if(idx !== -1) {
+                this.world.objects.splice(idx, 1)
+            }
+        }
     }
 }
 
