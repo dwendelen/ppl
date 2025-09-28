@@ -367,6 +367,7 @@ function startGame(time, x, y, alt) {
 // Avionics
 class Avionics {
     mapScales = [40, 20, 10, 5, 2, 1]
+    weaponOrder = [0, 3, 1, 2]
 
     constructor(me, world) {
         this.me = me
@@ -389,6 +390,7 @@ class Avionics {
 
         this.hsd = new HsdPage(this, world)
         this.wpt = new WptPage(this)
+        this.wpn = new WpnPage(this)
         this.selectedPage = this.hsd
 
         this.update()
@@ -594,8 +596,8 @@ class Page {
     }
     addPageButtons() {
         this.addButton('S', 1, "WPN",
-            () => false,
-            () => {}
+            () => this.avionics.selectedPage === this.avionics.wpn,
+            () => this.avionics.selectedPage = this.avionics.wpn,
         )
         // this.addButton('S', 1, "RDR",
         //     () => false,
@@ -719,6 +721,10 @@ class HsdPage extends Page {
             () => avionics.selectedWaypoint.toString(),
             () => this.avionics.incrWaypoint(),
             () => this.avionics.decrWaypoint()
+        )
+        this.addButton('E', 2, "TGT",
+            () => false,
+            () => { /* TODO */ }
         )
         this.addButton('N', 0, "TRK", () => false, () => {})
         this.addButton('N', 1, "NTH", () => true, () => {})
@@ -1000,6 +1006,87 @@ class WptPage extends Page {
         }
 
         super.drawWidgets(ctx)
+    }
+}
+
+class WpnPage extends Page {
+    constructor(avionics) {
+        super(avionics);
+        this.addPageButtons()
+        this.addRocker('E', 0,
+            () => avionics.selectedWaypoint.toString(),
+            () => this.avionics.incrWaypoint(),
+            () => this.avionics.decrWaypoint()
+        )
+        this.addButton('E', 2, "TGT",
+            () => false,
+            () => { /* TODO */ }
+        )
+        this.addButton('E', 4, "NXT",
+            () => false,
+            () => {
+                if(this.avionics.selectedWeapon !== null) {
+                    let idx = this.avionics.weaponOrder.indexOf(this.avionics.selectedWeapon);
+                    for (let i = 1; i < 5; i++) {
+                        let newIdx = this.avionics.weaponOrder[(idx + i) % this.avionics.weaponOrder.length]
+                        if(this.avionics.weapons[newIdx] !== null) {
+                            this.avionics.selectedWeapon = newIdx
+                            break
+                        }
+                    }
+                }
+            }
+        )
+        this.addButton('N', 0, "J82",
+            () => this.avionics.selectedWeapon != null,
+            () => {
+                if(this.avionics.selectedWeapon === null) {
+                    for (let i = 0; i < 4; i++) {
+                        let weapon = this.avionics.weaponOrder[i];
+                        if (this.avionics.weapons[weapon] !== null) {
+                            this.avionics.selectedWeapon = weapon
+                            break
+                        }
+                    }
+                } else {
+                    this.avionics.selectedWeapon = null
+                }
+            }
+        )
+    }
+
+    draw(ctx) {
+        ctx.font = "30px courier"
+        ctx.fillStyle = "white"
+        ctx.strokeStyle = "white"
+        ctx.textBaseline = "middle"
+
+        ctx.beginPath()
+        ctx.moveTo(1 * blockSize + 0.5, 2.75 * blockSize + 0.5)
+        ctx.lineTo(3 * blockSize + 0.5, 1.75 * blockSize + 0.5)
+        ctx.lineTo(4 * blockSize + 0.5, 1.75 * blockSize + 0.5)
+        ctx.lineTo(6 * blockSize + 0.5, 2.75 * blockSize + 0.5)
+        ctx.stroke()
+
+        this.drawWeapon(ctx, 0, 1.5, 3)
+        this.drawWeapon(ctx, 1, 2.5, 2.5)
+        this.drawWeapon(ctx, 2, 4.5, 2.5)
+        this.drawWeapon(ctx, 3, 5.5, 3)
+
+        super.drawWidgets(ctx)
+    }
+
+    drawWeapon(ctx, idx, x, y,) {
+        ctx.beginPath()
+        ctx.moveTo(x * blockSize + 0.5, (y - 0.5) * blockSize + 0.5)
+        ctx.lineTo(x * blockSize + 0.5, (y - 0.25) * blockSize + 0.5)
+        ctx.stroke()
+        if(this.avionics.weapons[idx] !== null) {
+            ctx.fillText("J82", x * blockSize + 0.5, y * blockSize + 0.5)
+            if(this.avionics.selectedWeapon === idx) {
+                ctx.strokeRect((x - 0.45) * blockSize + 0.5, (y - 0.2) * blockSize + 0.5, 0.9 * blockSize, 0.4 * blockSize)
+            }
+        }
     }
 }
 
