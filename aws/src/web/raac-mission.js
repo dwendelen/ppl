@@ -183,6 +183,40 @@ function startGame(time, x, y, alt) {
             avionics.onButton('W', y - 1)
         } else if(x === 6) {
             avionics.onButton('E', y - 1)
+        } else if(avionics.keypad !== null) {
+            if(y === 2) {
+                if(x === 2) {
+                    avionics.keypad.onDigit(1)
+                } else if(x === 3) {
+                    avionics.keypad.onDigit(2)
+                } else if(x === 4) {
+                    avionics.keypad.onDigit(3)
+                }
+            } else if(y === 3) {
+                if(x === 2) {
+                    avionics.keypad.onDigit(4)
+                } else if(x === 3) {
+                    avionics.keypad.onDigit(5)
+                } else if(x === 4) {
+                    avionics.keypad.onDigit(6)
+                }
+            } else if(y === 4) {
+                if(x === 2) {
+                    avionics.keypad.onDigit(7)
+                } else if(x === 3) {
+                    avionics.keypad.onDigit(8)
+                } else if(x === 4) {
+                    avionics.keypad.onDigit(9)
+                }
+            } else if(y === 5) {
+                if(x === 2) {
+                    avionics.keypad.onClear()
+                } else if(x === 3) {
+                    avionics.keypad.onDigit(0)
+                } else if(x === 4) {
+                    avionics.keypad.onEnter()
+                }
+            }
         }
         draw()
     }
@@ -247,6 +281,35 @@ function startGame(time, x, y, alt) {
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height)
         avionics.selectedPage.draw(ctx)
+
+        if(avionics.keypad !== null) {
+            ctx.clearRect(1.5 * blockSize + 0.5, 0.5 * blockSize + 0.5, 4 * blockSize, 6 * blockSize)
+            ctx.font = "30px courier"
+            ctx.fillStyle = "white"
+            ctx.strokeStyle = "white"
+            ctx.textBaseline = "middle"
+
+            ctx.lineWidth = 2
+            ctx.strokeRect(1.75 * blockSize, 0.75 * blockSize, 3.5 * blockSize, 5.5 * blockSize)
+            ctx.lineWidth = 1
+
+            ctx.textAlign = "left"
+            ctx.fillText(avionics.keypad.display, 2.3 * blockSize + 0.5, 1.5 * blockSize + 0.5)
+
+            ctx.textAlign = "center"
+            ctx.fillText("1", 2.5 * blockSize + 0.5, 2.5 * blockSize + 0.5)
+            ctx.fillText("2", 3.5 * blockSize + 0.5, 2.5 * blockSize + 0.5)
+            ctx.fillText("3", 4.5 * blockSize + 0.5, 2.5 * blockSize + 0.5)
+            ctx.fillText("4", 2.5 * blockSize + 0.5, 3.5 * blockSize + 0.5)
+            ctx.fillText("5", 3.5 * blockSize + 0.5, 3.5 * blockSize + 0.5)
+            ctx.fillText("6", 4.5 * blockSize + 0.5, 3.5 * blockSize + 0.5)
+            ctx.fillText("7", 2.5 * blockSize + 0.5, 4.5 * blockSize + 0.5)
+            ctx.fillText("8", 3.5 * blockSize + 0.5, 4.5 * blockSize + 0.5)
+            ctx.fillText("9", 4.5 * blockSize + 0.5, 4.5 * blockSize + 0.5)
+            ctx.fillText("CLR", 2.5 * blockSize + 0.5, 5.5 * blockSize + 0.5)
+            ctx.fillText("0", 3.5 * blockSize + 0.5, 5.5 * blockSize + 0.5)
+            ctx.fillText("ENT", 4.5 * blockSize + 0.5, 5.5 * blockSize + 0.5)
+        }
 
         ctrl.clearRect(0, 0, controls.width, controls.height)
 
@@ -333,6 +396,8 @@ class Avionics {
             this.x,
             this.y
         ))
+
+        this.keypad = null
     }
 
     update() {
@@ -424,19 +489,7 @@ class Avionics {
         }
     }
 
-    moveUp() {
-        let idx = this.flightplan.indexOf(this.selectedWaypoint)
-        if (idx === -1) {
-            this.flightplan.push(this.selectedWaypoint)
-        } else if(idx === 0) {
-            this.flightplan.shift()
-        } else {
-            this.flightplan[idx] = this.flightplan[idx - 1]
-            this.flightplan[idx - 1] = this.selectedWaypoint
-        }
-    }
-
-    moveDown() {
+    incrFlightplan() {
         let idx = this.flightplan.indexOf(this.selectedWaypoint)
         if (idx === -1) {
             this.flightplan.unshift(this.selectedWaypoint)
@@ -445,6 +498,18 @@ class Avionics {
         } else {
             this.flightplan[idx] = this.flightplan[idx + 1]
             this.flightplan[idx + 1] = this.selectedWaypoint
+        }
+    }
+
+    decrFlightplan() {
+        let idx = this.flightplan.indexOf(this.selectedWaypoint)
+        if (idx === -1) {
+            this.flightplan.push(this.selectedWaypoint)
+        } else if(idx === 0) {
+            this.flightplan.shift()
+        } else {
+            this.flightplan[idx] = this.flightplan[idx - 1]
+            this.flightplan[idx - 1] = this.selectedWaypoint
         }
     }
 
@@ -872,11 +937,25 @@ class WptPage extends Page {
         )
         this.addRocker('E', 3,
             () => "MOV",
-            () => this.avionics.moveUp(),
-            () => this.avionics.moveDown(),
+            () => this.avionics.incrFlightplan(),
+            () => this.avionics.decrFlightplan(),
         )
-        this.addButton('W', 0, "LAT", () => false, () => {})
-        this.addButton('W', 1, "LON", () => false, () => {})
+        this.addButton('W', 0, "LAT", () => false, () => {
+            this.avionics.keypad = new Keypad("lat", (lat) => {
+                this.avionics.waypoints[this.avionics.selectedWaypoint].y = latToY1(lat)
+                this.avionics.keypad = null
+            }, () => {
+                this.avionics.keypad = null
+            })
+        })
+        this.addButton('W', 1, "LON", () => false, () => {
+            this.avionics.keypad = new Keypad("lon", (lon) => {
+                this.avionics.waypoints[this.avionics.selectedWaypoint].x = lonToX1(lon)
+                this.avionics.keypad = null
+            }, () => {
+                this.avionics.keypad = null
+            })
+        })
         this.addButton('W', 2, "ALT", () => false, () => {})
     }
 
@@ -924,10 +1003,60 @@ class WptPage extends Page {
     }
 }
 
-// Mission
+class Keypad {
+    constructor(type, onEntered, onDoubleCleared) {
+        if(!(type === "lat" || type === "lon")) {
+            throw "Unknown type " + type
+        }
+        this.type = type
+        this.onEntered = onEntered
+        this.onDoubleCleared = onDoubleCleared
+        this.reset()
+    }
+
+    onDigit(digit) {
+        if(this.display.length < 11) {
+            if(this.display.length === 5 || this.display.length === 8) {
+                this.display += " "
+            }
+            this.display += digit.toString()
+        }
+    }
+
+    reset() {
+        if(this.type === "lat") {
+            this.display = "N  "
+        } else if(this.type === "lon") {
+            this.display = "E "
+        }
+    }
+
+    onEnter() {
+        if(this.type === "lat" || this.type === "lon") {
+            let maxDeg = this.type === "lat"? 90: 180
+            let deg = Number.parseInt(this.display.slice(2, 5).trimStart())
+            let min = Number.parseInt(this.display.slice(6, 8))
+            let sec = Number.parseInt(this.display.slice(9, 11))
+            if(deg < maxDeg && min < 60 && sec < 60) {
+                this.onEntered(deg + min/60 + sec/3600)
+                this.reset()
+            } else {
+                this.reset()
+            }
+        }
+        // Nothing
+    }
+
+    onClear() {
+        let oldDisplay = this.display
+        this.reset()
+        if(this.display === oldDisplay) {
+            this.onDoubleCleared()
+        }
+    }
+}
 
 // Simulation
-
 class World {
     constructor() {
         this.objects = []
