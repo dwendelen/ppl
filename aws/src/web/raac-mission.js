@@ -93,45 +93,9 @@ function rotate(xy, angle) {
 
 function startGame(time, x, y, alt) {
     let world = new World();
-    let me = new MyPlane(time, x, y, alt, world);
-    world.add(me)
-    let avionics = new Avionics(me, world);
 
-    let piraeusstraat = new Waypoint(lonToX1(4.413013), latToY1(51.234931), 0);
-    let ekere = new Waypoint(lonToX1(4.435213), latToY1(51.284352), 0);
-    let hotel = new Waypoint(lonToX1(4.807622), latToY1(51.173261), 0);
-    let duffy = new Waypoint(lonToX1(4.494610), latToY1(51.085801), 0);
-    let tango = new Waypoint(lonToX1(4.219559), latToY1(51.121318), 0);
-
-    avionics.waypoints.push(ekere, hotel, duffy, tango)
-
-    // Ekere
-    world.add(new Structure(
-        lonToX1(4.435279), latToY1(51.284138), 0,
-        0.012, 0.03, Math.PI / 4
-    ))
-    // Hotel
-    world.add(new Structure(
-        lonToX1(4.806521), latToY1(51.172870), 0,
-        0.006, 0.085, -Math.PI / 3
-    ))
-    // Duffy
-    world.add(new Structure(
-        lonToX1(4.494610), latToY1(51.085260), 0,
-        0.012, 0.06, 0.2
-    ))
-    // Tango
-    world.add(new Structure(
-        lonToX1(4.218908), latToY1(51.119683), 0,
-         0.02, 0.2, -Math.PI / 18
-    ))
-    let ehmz = new SAM(lonToX3(3, 43, 52), latToY3(51, 30, 44), 0, 20);
-    let ehwo = new SAM(lonToX3(4, 20, 30), latToY3(51, 26, 56), 0, 8);
-    let ebbr = new SAM(lonToX3(4, 29,  4), latToY3(50, 54,  5), 0, 10);
-
-    world.add(ehmz);
-    world.add(ehwo);
-    world.add(ebbr);
+    let thomas = new Thomas(world);
+    let avionics = thomas.init(time, x, y, alt)
 
     clear(main)
 
@@ -267,7 +231,7 @@ function startGame(time, x, y, alt) {
     }
 
     function onGeolocation(time, x, y, alt) {
-        me.updatePos(time, x, y, alt)
+        world.updatePos(time, x, y, alt)
         avionics.update()
         draw()
     }
@@ -978,6 +942,14 @@ class World {
             object.update(time)
         }
     }
+
+    updatePos(time, x, y, alt) {
+        for (let object of this.objects) {
+            if(object instanceof MyPlane) {
+                object.updatePos(time, x, y, alt)
+            }
+        }
+    }
 }
 
 class GameObj {
@@ -1244,6 +1216,56 @@ function loadFakeGeo() {
         horizontalVelocity = newHVel
         return horizontalVelocity
     }, 10)
+}
+
+// Missions
+class Thomas {
+    constructor(world) {
+        this.world = world
+    }
+    init(time, x, y, alt) {
+        let me = new MyPlane(time, x, y, alt, this.world);
+        this.world.add(me)
+        let avionics = new Avionics(me, this.world);
+
+        let piraeusstraat = new Waypoint(lonToX1(4.413013), latToY1(51.234931), 0);
+        let ekere = new Waypoint(lonToX1(4.435213), latToY1(51.284352), 0);
+        let hotel = new Waypoint(lonToX1(4.807622), latToY1(51.173261), 0);
+        let duffy = new Waypoint(lonToX1(4.494610), latToY1(51.085801), 0);
+        let tango = new Waypoint(lonToX1(4.219559), latToY1(51.121318), 0);
+
+        avionics.waypoints.push(ekere, hotel, duffy, tango)
+
+        // Ekere
+        this.world.add(new Structure(
+            lonToX1(4.435279), latToY1(51.284138), 0,
+            0.012, 0.03, Math.PI / 4
+        ))
+        // Hotel
+        this.world.add(new Structure(
+            lonToX1(4.806521), latToY1(51.172870), 0,
+            0.006, 0.085, -Math.PI / 3
+        ))
+        // Duffy
+        this.world.add(new Structure(
+            lonToX1(4.494610), latToY1(51.085260), 0,
+            0.012, 0.06, 0.2
+        ))
+        // Tango
+        this.world.add(new Structure(
+            lonToX1(4.218908), latToY1(51.119683), 0,
+            0.02, 0.2, -Math.PI / 18
+        ))
+        let ehmz = new SAM(lonToX3(3, 43, 52), latToY3(51, 30, 44), 0, 20);
+        let ehwo = new SAM(lonToX3(4, 20, 30), latToY3(51, 26, 56), 0, 8);
+        let ebbr = new SAM(lonToX3(4, 29,  4), latToY3(50, 54,  5), 0, 10);
+
+        this.world.add(ehmz);
+        this.world.add(ehwo);
+        this.world.add(ebbr);
+
+        return avionics
+    }
 }
 
 // TODO
