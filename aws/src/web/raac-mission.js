@@ -231,35 +231,9 @@ function startGame(time, x, y, alt) {
     let dropButton = new Path2D();
     dropButton.arc(canvasSize - controlHeight/4 + 0.5, controlHeight / 4 * 3 + 0.5, controlHeight / 5, 0, Math.PI * 2);
 
-    let weaponPath = []
-    for (let i = 0; i < 4; i++) {
-        let weapPath = new Path2D();
-        weapPath.arc(i * controlHeight / 2 + controlHeight / 4 + 0.5, controlHeight / 4 + 0.5, controlHeight / 5, 0, Math.PI * 2);
-        weaponPath.push(weapPath)
-    }
-
-    let waypointPath = []
-    for (let i = 0; i < 4; i++) {
-        let wpPath = new Path2D();
-        wpPath.arc(i * controlHeight / 2 + controlHeight / 4 + 0.5, controlHeight / 4 * 3 + 0.5, controlHeight / 5, 0, Math.PI * 2);
-        waypointPath.push(wpPath)
-    }
-
     controls.onclick = (ev) => {
         if(ctrl.isPointInPath(dropButton, ev.offsetX, ev.offsetY)) {
             avionics.dropPressed()
-        }
-        for (let i = 0; i < 4; i++) {
-            let weapPath = weaponPath[i]
-            if(ctrl.isPointInPath(weapPath, ev.offsetX, ev.offsetY)) {
-                avionics.weaponPressed(i)
-            }
-        }
-        for (let i = 0; i < 4; i++) {
-            let wpPath = waypointPath[i]
-            if(ctrl.isPointInPath(wpPath, ev.offsetX, ev.offsetY)) {
-                avionics.waypointPressed(i + 1)
-            }
         }
         draw()
     }
@@ -383,7 +357,6 @@ class Avionics {
         this.selectedWaypoint = 0
         this.flightplan = []
 
-        this.canvasSize = canvasSize
         this.curX = canvasSize / 2
         this.curY = canvasSize / 2
         this.mapScale = 2
@@ -432,11 +405,11 @@ class Avionics {
         if(this.curY < 0) {
             this.curY = 0
         }
-        if(this.curX > this.canvasSize) {
-            this.curX = this.canvasSize
+        if(this.curX > canvasSize) {
+            this.curX = canvasSize
         }
-        if(this.curY > this.canvasSize) {
-            this.curY = this.canvasSize
+        if(this.curY > canvasSize) {
+            this.curY = canvasSize
         }
     }
 
@@ -461,8 +434,25 @@ class Avionics {
             this.selectedWaypoint = 0
         } else {
             this.selectedWaypoint = i
-            if(this.selectedWeapon != null && this.weapons[this.selectedWeapon] !== null) {
-                this.weapons[this.selectedWeapon].target = this.waypoints[i]
+            this.targetPressed()
+        }
+    }
+
+    targetPressed() {
+        if(this.selectedWeapon != null && this.weapons[this.selectedWeapon] !== null) {
+            this.weapons[this.selectedWeapon].target = this.waypoints[this.selectedWaypoint]
+        }
+    }
+
+    step() {
+        if(this.selectedWeapon !== null) {
+            let idx = this.weaponOrder.indexOf(this.selectedWeapon);
+            for (let i = 1; i < 5; i++) {
+                let newIdx = this.weaponOrder[(idx + i) % this.weaponOrder.length]
+                if(this.weapons[newIdx] !== null) {
+                    this.selectedWeapon = newIdx
+                    break
+                }
             }
         }
     }
@@ -724,7 +714,11 @@ class HsdPage extends Page {
         )
         this.addButton('E', 2, "TGT",
             () => false,
-            () => { /* TODO */ }
+            () => this.avionics.targetPressed()
+        )
+        this.addButton('E', 4, "NXT",
+            () => false,
+            () =>  this.avionics.step()
         )
         this.addButton('N', 0, "TRK", () => false, () => {})
         this.addButton('N', 1, "NTH", () => true, () => {})
@@ -1020,22 +1014,11 @@ class WpnPage extends Page {
         )
         this.addButton('E', 2, "TGT",
             () => false,
-            () => { /* TODO */ }
+            () => this.avionics.targetPressed()
         )
         this.addButton('E', 4, "NXT",
             () => false,
-            () => {
-                if(this.avionics.selectedWeapon !== null) {
-                    let idx = this.avionics.weaponOrder.indexOf(this.avionics.selectedWeapon);
-                    for (let i = 1; i < 5; i++) {
-                        let newIdx = this.avionics.weaponOrder[(idx + i) % this.avionics.weaponOrder.length]
-                        if(this.avionics.weapons[newIdx] !== null) {
-                            this.avionics.selectedWeapon = newIdx
-                            break
-                        }
-                    }
-                }
-            }
+            () => this.avionics.step()
         )
         this.addButton('N', 0, "J82",
             () => this.avionics.selectedWeapon != null,
