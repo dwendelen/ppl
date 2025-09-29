@@ -417,6 +417,16 @@ class Avionics {
         if(this.selectedWeapon != null) {
             this.me.drop(this.selectedWeapon, this.weapons[this.selectedWeapon].target)
             this.weapons[this.selectedWeapon] = null
+
+            let idx = this.weaponOrder.indexOf(this.selectedWeapon);
+            for (let i = 1; i < 4; i++) {
+                let newIdx = this.weaponOrder[(idx + i) % this.weaponOrder.length]
+                if(this.weapons[newIdx] !== null) {
+                    this.selectedWeapon = newIdx
+                    return
+                }
+            }
+
             this.selectedWeapon = null
         }
     }
