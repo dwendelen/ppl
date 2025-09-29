@@ -421,23 +421,6 @@ class Avionics {
         }
     }
 
-    weaponPressed(i) {
-        if(i === this.selectedWeapon) {
-            this.selectedWeapon = null
-        } else if(this.weapons[i] !== null) {
-            this.selectedWeapon = i
-        }
-    }
-
-    waypointPressed(i) {
-        if(i === this.selectedWaypoint) {
-            this.selectedWaypoint = 0
-        } else {
-            this.selectedWaypoint = i
-            this.targetPressed()
-        }
-    }
-
     targetPressed() {
         if(this.selectedWeapon != null && this.weapons[this.selectedWeapon] !== null) {
             this.weapons[this.selectedWeapon].target = this.waypoints[this.selectedWaypoint]
