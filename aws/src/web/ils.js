@@ -20,68 +20,88 @@ function run() {
             lon: lon,
             alt: alt
         }
-        let angles = toAngles(p1, p2, runways, time)
+    }
+
+    function onFrame(frameTime) {
+        let time = performance.timeOrigin + frameTime
+        let angles = calculate(p1, p2, runways, time)
         if(angles == null) {
             drawAngles(canvas, null, null)
         } else {
             drawAngles(canvas, angles[0], angles[1])
         }
+        requestAnimationFrame(onFrame)
     }
 
     drawAngles(canvas, null, null)
+    requestAnimationFrame(onFrame)
 
     // loadGeoLocation(positionUpdated)
     startFakeGeo(positionUpdated)
 }
 
-function toAngles(p1, p2, runways, time) {
+function calculate(p1, p2, runways, time) {
     if(p1 == null || p2 == null) {
         return null
     }
 
     let point = extrapolate(p1, p2, time)
-    let runway = closestRunway(runways, point)
-    return toAngles2(point, runway)
+    let runway = closestRunway(runways, p1)
+    return toAngles(point, runway)
 }
 
 function extrapolate(p1, p2, time) {
+    let xyz = toXYZ(p1, p2)
     let dT = p1.t - p2.t
-    let dLat = p1.lat - p2.lat
-    let dLon = p1.lon - p2.lon
-    let dAlt = p1.alt - p2.alt
 
     let alpha = (time - p1.t) / dT
 
-    let lat = p1.lat + alpha * dLat
-    let lon = p1.lon + alpha * dLon
-    let alt = p1.alt + alpha * dAlt
+    let x = -alpha * xyz.x
+    let y = -alpha * xyz.y
+    let z = -alpha * xyz.z
 
-    return {lat: lat, lon: lon, alt: alt};
+    // 3 degrees / sec in radian per milisecond
+    const radPerMSec = 3 * Math.PI / 180 / 1000
+    // Note: p1 = 0 -> x and y are relative to p1
+    // Note: we use sin as approximation, should be good enough for small angles
+    //       then we divide by two, because the change is not instant, but gradual
+    let dXy = Math.sqrt(x * x + y * y) * Math.sin(radPerMSec * (time - p1.t)) / 2
+
+    // 100 ft/min in nautical mile / milisec
+    const dZPerMSec = 100 * 0.3048 / 1852 / 60000
+    let dZ = dZPerMSec * (time - p1.t)
+
+    return {x: x, y: y, z: z, dXy: dXy, dZ: dZ};
 }
 
 function closestRunway(runways, point) {
-    let runway = runways[0]
-    let xYZ = toXYZ(point, runway);
-    let distSq = xYZ.x * xYZ.x + xYZ.y * xYZ.y
+    let runway = null;
+    let distSq = 10e10;
     for (let runway2 of runways) {
-        xYZ = toXYZ(point, runway2);
+        let xYZ = toXYZ(point, runway2);
         let distSq2 = xYZ.x * xYZ.x + xYZ.y * xYZ.y
         if(distSq2 < distSq) {
-            runway = runway2
+            runway = {
+                bearing: runway2.bearing,
+                angle: runway2.angle,
+                x: xYZ.x,
+                y: xYZ.y,
+                z: xYZ.z
+            }
             distSq = distSq2
         }
     }
     return runway;
 }
 
-function toAngles2(point, runway) {
-    let xYZ = toXYZ(runway, point)
-    let dx = xYZ.x
-    let dy = xYZ.y
-    let dz = xYZ.z
+function toAngles(point, runway) {
+    let x = runway.x - point.x
+    let y = runway.y - point.y
+    let z = runway.z - point.z
 
-    let angle1 = Math.atan2(dx, dy) * 180 / Math.PI
-    let angle2 = Math.atan2(dz, Math.sqrt(dx*dx + dy*dy)) * 180 / Math.PI
+    let dist = Math.sqrt(x*x + y*y);
+    let angle1 = Math.atan2(x, y) * 180 / Math.PI
+    let angle2 = Math.atan2(z, dist) * 180 / Math.PI
 
     let res1 = angle1 - runway.bearing
     while(res1 > 180) {
@@ -90,15 +110,19 @@ function toAngles2(point, runway) {
     while(res1 < -180) {
         res1 += 360
     }
-    return [res1, angle2 - -runway.angle]
+
+    let dAngle1 = Math.atan2(point.dXy, dist) * 180 / Math.PI
+    let dAngle2 = Math.atan2(point.dZ, dist) * 180 / Math.PI
+
+    return [{base: res1, spread: dAngle1}, {base: angle2 - -runway.angle, spread: dAngle2}]
 }
 
 // x, y, z in nautical miles
 // lat, lon in degrees, alt in meters
 function toXYZ(reference, point) {
-    let y = (reference.lat - point.lat) * 60
-    let x = (reference.lon - point.lon) * 60 * Math.cos(reference.lat * Math.PI / 180)
-    let z = (reference.alt - point.alt) / 1852
+    let y = (point.lat - reference.lat) * 60
+    let x = (point.lon - reference.lon) * 60 * Math.cos(reference.lat * Math.PI / 180)
+    let z = (point.alt - reference.alt) / 1852
     return { x: x, y: y, z: z}
 }
 
@@ -127,16 +151,21 @@ function drawAngles(canvas, angleX, angleY) {
     ctx.lineTo(canvas.width / 2, 0.9 * canvas.height)
     ctx.stroke()
 
-    ctx.lineWidth = 4
     ctx.setLineDash([])
     if(angleX != null) {
-        if(angleX > 2.5) {
-            angleX = 2.5
+        let lineWidth = 2 * angleX.spread / 2.5 * 0.4 * canvas.width
+        if(lineWidth < 4) {
+            lineWidth = 4
         }
-        if(angleX < -2.5) {
-            angleX = -2.5
+        ctx.lineWidth = lineWidth
+
+        if(angleX.base > 2.5) {
+            angleX.base = 2.5
         }
-        let x = angleX / 2.5 * 0.8 * canvas.width / 2 + canvas.width / 2
+        if(angleX.base < -2.5) {
+            angleX.base = -2.5
+        }
+        let x = angleX.base / 2.5 * 0.4 * canvas.width + canvas.width / 2
         ctx.beginPath()
         ctx.moveTo(x, 0.2 * canvas.height)
         ctx.lineTo(x, 0.8 * canvas.height)
@@ -144,13 +173,19 @@ function drawAngles(canvas, angleX, angleY) {
     }
 
     if(angleY != null) {
-        if(angleY > 0.7) {
-            angleY = 0.7
+        let lineWidth = 2 * angleY.spread / 0.7 * 0.4 * canvas.height
+        if(lineWidth < 4) {
+            lineWidth = 4
         }
-        if(angleY < -0.7) {
-            angleY = -0.7
+        ctx.lineWidth = lineWidth
+
+        if(angleY.base > 0.7) {
+            angleY.base = 0.7
         }
-        let y = -angleY / 0.7 * 0.8 * canvas.height / 2 + canvas.height / 2
+        if(angleY.base < -0.7) {
+            angleY.base = -0.7
+        }
+        let y = -angleY.base / 0.7 * 0.4 * canvas.height + canvas.height / 2
         ctx.beginPath()
         ctx.moveTo(0.2 * canvas.width, y)
         ctx.lineTo(0.8 * canvas.width, y)
@@ -201,7 +236,7 @@ let runways = [
         lon: toDecimal("0042717.19"),
         alt: 28.7 * 0.3048, //ft
         bearing: 109.80, //degrees, true
-        angle: 3 // degrees
+        angle: 3.5 // degrees
     },
     {
         lat: toDecimal("511115.75"),
